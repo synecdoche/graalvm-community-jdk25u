@@ -83,7 +83,7 @@ public class HighTier extends BaseTier<HighTierContext> {
                 appendPhase(new PriorityInliningPhase(canonicalizer, options));
                 boxNodeIdentityPhaseAdded = true;
             } else {
-                appendPhase(new InliningPhase(new GreedyInliningPolicy(null), canonicalizer));
+                appendPhase(new InliningPhase(new GreedyInliningPolicy(null), canonicalizer, options));
             }
             appendPhase(new DeadCodeEliminationPhase(Optional));
         }
