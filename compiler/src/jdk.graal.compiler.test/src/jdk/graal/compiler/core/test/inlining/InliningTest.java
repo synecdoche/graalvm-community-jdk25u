@@ -1021,7 +1021,7 @@ public class InliningTest extends GraalCompilerTest {
                 if (expectedInvokeTarget != null) {
                     Assert.assertEquals("Original invokes of method " + expectedInvokeTarget, expectedInvokesBeforeInlining, countInvokesTo(graph, expectedInvokeTarget));
                 }
-                createInliningPhase().apply(graph, context);
+                createInliningPhase(options).apply(graph, context);
                 debug.dump(DebugContext.BASIC_LEVEL, graph, "Graph");
                 createCanonicalizerPhase().apply(graph, context);
                 new DeadCodeEliminationPhase().apply(graph);
@@ -1044,7 +1044,7 @@ public class InliningTest extends GraalCompilerTest {
                                 OptimisticOptimizations.ALL);
                 debug.dump(DebugContext.BASIC_LEVEL, graph, "Graph");
                 createCanonicalizerPhase().apply(graph, context);
-                createInliningPhase().apply(graph, context);
+                createInliningPhase(options).apply(graph, context);
                 debug.dump(DebugContext.BASIC_LEVEL, graph, "Graph");
                 createCanonicalizerPhase().apply(graph, context);
                 new DeadCodeEliminationPhase().apply(graph);

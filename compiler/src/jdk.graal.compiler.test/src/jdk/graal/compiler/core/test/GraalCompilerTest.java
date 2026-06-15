@@ -793,6 +793,10 @@ public abstract class GraalCompilerTest extends GraalTest {
         return createInliningPhase(null, canonicalizer);
     }
 
+    protected BasePhase<HighTierContext> createInliningPhase(OptionValues options) {
+        return createInliningPhase(null, this.createCanonicalizerPhase(), options);
+    }
+
     static class GreedyTestInliningPolicy extends GreedyInliningPolicy {
         GreedyTestInliningPolicy(Map<Invoke, Double> hints) {
             super(hints);
@@ -806,7 +810,11 @@ public abstract class GraalCompilerTest extends GraalTest {
     }
 
     protected BasePhase<HighTierContext> createInliningPhase(Map<Invoke, Double> hints, CanonicalizerPhase canonicalizer) {
-        return new InliningPhase(new GreedyTestInliningPolicy(hints), canonicalizer);
+        return createInliningPhase(hints, canonicalizer, null);
+    }
+
+    protected BasePhase<HighTierContext> createInliningPhase(Map<Invoke, Double> hints, CanonicalizerPhase canonicalizer, OptionValues options) {
+        return new InliningPhase(new GreedyTestInliningPolicy(hints), canonicalizer, options);
     }
 
     protected CompilationIdentifier getCompilationId(ResolvedJavaMethod method) {
