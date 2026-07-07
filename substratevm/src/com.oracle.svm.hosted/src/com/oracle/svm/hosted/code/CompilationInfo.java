@@ -34,6 +34,7 @@ import jdk.graal.compiler.debug.DebugContext;
 import jdk.graal.compiler.nodes.ConstantNode;
 import jdk.graal.compiler.nodes.FrameState;
 import jdk.graal.compiler.nodes.GraphDecoder;
+import jdk.graal.compiler.nodes.GraphDecoder.DecodeContext;
 import jdk.graal.compiler.nodes.StructuredGraph;
 import jdk.graal.compiler.options.OptionValues;
 
@@ -113,6 +114,10 @@ public class CompilationInfo {
 
     @SuppressWarnings("try")
     public StructuredGraph createGraph(DebugContext debug, OptionValues options, CompilationIdentifier compilationId, boolean decode) {
+        return createGraph(debug, options, compilationId, decode, DecodeContext.DEFAULT);
+    }
+
+    public StructuredGraph createGraph(DebugContext debug, OptionValues options, CompilationIdentifier compilationId, boolean decode, DecodeContext decodeContext) {
         var encodedGraph = getCompilationGraph().getEncodedGraph();
         var graph = new StructuredGraph.Builder(options, debug)
                         .method(method)
@@ -124,7 +129,7 @@ public class CompilationInfo {
         if (decode) {
             try (var s = debug.scope("CreateGraph", graph, method)) {
                 var decoder = new GraphDecoder(AnalysisParsedGraph.HOST_ARCHITECTURE, graph);
-                decoder.decode(encodedGraph);
+                decoder.decode(encodedGraph, decodeContext);
             } catch (Throwable ex) {
                 throw debug.handle(ex);
             }

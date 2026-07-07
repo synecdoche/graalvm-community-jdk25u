@@ -44,6 +44,7 @@ import jdk.graal.compiler.nodes.ValueNode;
 import jdk.graal.compiler.nodes.java.LoadFieldNode;
 import jdk.graal.compiler.nodes.java.MethodCallTargetNode;
 import jdk.graal.compiler.replacements.nodes.ResolvedMethodHandleCallTargetNode;
+import jdk.vm.ci.meta.ResolvedJavaMethod;
 
 public class InlineBeforeAnalysisGraphDecoderImpl extends InlineBeforeAnalysisGraphDecoder {
 
@@ -52,6 +53,16 @@ public class InlineBeforeAnalysisGraphDecoderImpl extends InlineBeforeAnalysisGr
 
     public InlineBeforeAnalysisGraphDecoderImpl(BigBang bb, InlineBeforeAnalysisPolicy policy, StructuredGraph graph, HostedProviders providers) {
         super(bb, policy, graph, providers, null);
+    }
+
+    /**
+     * Allows inline-before-analysis decoding to repair allocation OOME edges when the decoded callee
+     * is materialized under a supported OOME-catching context. For more information, see
+     * {@link OOMEExceptionEdgePolicy}.
+     */
+    @Override
+    protected boolean supportsOOMEExceptionEdgeRepair(ResolvedJavaMethod method, PEMethodScope caller, InvokeData invokeData) {
+        return super.supportsOOMEExceptionEdgeRepair(method, caller, invokeData) && OOMEExceptionEdgePolicy.supportsOOMEExceptionEdges(method);
     }
 
     @Override

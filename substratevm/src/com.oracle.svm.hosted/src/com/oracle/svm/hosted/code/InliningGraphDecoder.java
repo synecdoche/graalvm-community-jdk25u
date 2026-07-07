@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.oracle.graal.pointsto.flow.AnalysisParsedGraph;
 import com.oracle.svm.hosted.meta.HostedMethod;
+import com.oracle.svm.hosted.phases.OOMEExceptionEdgePolicy;
 
 import jdk.graal.compiler.bytecode.BytecodeProvider;
 import jdk.graal.compiler.nodes.EncodedGraph;
@@ -56,5 +57,15 @@ class InliningGraphDecoder extends PEGraphDecoder {
     @Override
     protected EncodedGraph lookupEncodedGraph(ResolvedJavaMethod method, BytecodeProvider intrinsicBytecodeProvider) {
         return ((HostedMethod) method).compilationInfo.getCompilationGraph().getEncodedGraph();
+    }
+
+    /**
+     * Allows hosted compilation decoding to repair allocation OOME edges for methods that can
+     * support explicit OOME control flow. For more information, see
+     * {@link OOMEExceptionEdgePolicy}.
+     */
+    @Override
+    protected boolean supportsOOMEExceptionEdgeRepair(ResolvedJavaMethod method, PEMethodScope caller, InvokeData invokeData) {
+        return OOMEExceptionEdgePolicy.supportsOOMEExceptionEdges(method);
     }
 }
