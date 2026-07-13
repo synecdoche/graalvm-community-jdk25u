@@ -630,6 +630,18 @@ public class SubstrateAMD64Backend extends SubstrateBackend implements LIRGenera
         }
 
         @Override
+        public void emitStrategySwitch(SwitchStrategy strategy, AllocatableValue key, LabelRef[] keyTargets, LabelRef defaultTarget) {
+            boolean needsTemp = !LIRKind.isValue(key);
+            append(new SubstrateAMD64StrategySwitchOp(strategy, keyTargets, defaultTarget, key, needsTemp ? newVariable(key.getValueKind()) : Value.ILLEGAL));
+        }
+
+        @Override
+        protected jdk.graal.compiler.lir.amd64.AMD64ControlFlow.StrategySwitchOp createStrategySwitchOp(SwitchStrategy strategy, LabelRef[] keyTargets, LabelRef defaultTarget,
+                        AllocatableValue key, AllocatableValue temp) {
+            return new SubstrateAMD64StrategySwitchOp(strategy, keyTargets, defaultTarget, key, temp);
+        }
+
+        @Override
         public void emitReturn(JavaKind kind, Value input) {
             AllocatableValue operand = Value.ILLEGAL;
             if (input != null) {
@@ -1455,12 +1467,35 @@ public class SubstrateAMD64Backend extends SubstrateBackend implements LIRGenera
         }
     }
 
-    protected static class SubstrateAMD64MoveFactory extends AMD64MoveFactory {
+    public static final class SubstrateAMD64StrategySwitchOp extends jdk.graal.compiler.lir.amd64.AMD64ControlFlow.StrategySwitchOp {
+        public static final LIRInstructionClass<SubstrateAMD64StrategySwitchOp> TYPE = LIRInstructionClass.create(SubstrateAMD64StrategySwitchOp.class);
 
+        private SubstrateAMD64StrategySwitchOp(SwitchStrategy strategy, LabelRef[] keyTargets, LabelRef defaultTarget, AllocatableValue key, AllocatableValue scratch) {
+            super(TYPE, strategy, keyTargets, defaultTarget, key, scratch);
+        }
+
+        @Override
+        protected void emitObjectComparison(CompilationResultBuilder crb, AMD64MacroAssembler masm, Register keyRegister, Register scratchRegister, JavaConstant jc) {
+            if (jc instanceof CompressibleConstant constant && !jc.isNull()) {
+                /*
+                 * Strategy-switch object keys are uncompressed hub references, so compressed object
+                 * constants must be uncompressed before the pointer compare.
+                 */
+                assert !constant.isCompressed() : constant;
+                SubstrateAMD64MoveFactory.LoadCompressedObjectConstantOp.emitLoadObjectConstant(crb, masm, scratchRegister, constant, ReservedRegisters.singleton().getHeapBaseRegister(),
+                                getCompressEncoding().getShift());
+                masm.cmpptr(keyRegister, scratchRegister);
+            } else {
+                super.emitObjectComparison(crb, masm, keyRegister, scratchRegister, jc);
+            }
+        }
+    }
+
+    private class SubstrateAMD64MoveFactory extends AMD64MoveFactory {
         private final SharedMethod method;
-        protected final LIRKindTool lirKindTool;
+        private final LIRKindTool lirKindTool;
 
-        protected SubstrateAMD64MoveFactory(BackupSlotProvider backupSlotProvider, SharedMethod method, LIRKindTool lirKindTool) {
+        SubstrateAMD64MoveFactory(BackupSlotProvider backupSlotProvider, SharedMethod method, LIRKindTool lirKindTool) {
             super(backupSlotProvider);
             this.method = method;
             this.lirKindTool = lirKindTool;
@@ -1526,12 +1561,31 @@ public class SubstrateAMD64Backend extends SubstrateBackend implements LIRGenera
             return super.createStackLoad(dst, src);
         }
 
-        protected AMD64LIRInstruction loadObjectConstant(AllocatableValue dst, CompressibleConstant constant) {
-            if (ReferenceAccess.singleton().haveCompressedReferences()) {
-                RegisterValue heapBase = ReservedRegisters.singleton().getHeapBaseRegister().asValue();
-                return new LoadCompressedObjectConstantOp(dst, constant, heapBase, getCompressEncoding(), lirKindTool);
+        @Override
+        public Register getPreferredGeneralPurposeScratchRegister() {
+            return ReservedRegisters.singleton().getCodeBaseRegister();
+        }
+
+        @Override
+        public boolean canInlineConstant(Constant c) {
+            if (SubstrateOptions.useCompressedReferences()) {
+                if (CompressedNullConstant.COMPRESSED_NULL.equals(c)) {
+                    return true;
+                } else if (c instanceof CompressibleConstant) {
+                    return ((CompressibleConstant) c).isCompressed();
+                }
             }
-            return new MoveFromConstOp(dst, constant);
+            return super.canInlineConstant(c);
+        }
+
+        private AMD64LIRInstruction loadObjectConstant(AllocatableValue dst, CompressibleConstant constant) {
+            ConstantReflectionProvider constantReflection = getProviders().getConstantReflection();
+            if (!constant.isCompressed() && AMD64ImageHeapAddressOptimizationPhase.canOptimize(constant, constantReflection)) {
+                return new LoadUncompressedImageHeapConstantOp(dst, constant);
+            }
+
+            RegisterValue heapBase = ReservedRegisters.singleton().getHeapBaseRegister().asValue();
+            return new LoadCompressedObjectConstantOp(dst, constant, heapBase, getCompressEncoding(), lirKindTool);
         }
 
         /*
@@ -1569,9 +1623,12 @@ public class SubstrateAMD64Backend extends SubstrateBackend implements LIRGenera
                 /*
                  * WARNING: must NOT have side effects. Preserve the flags register!
                  */
-                Register resultReg = getResultRegister();
+                emitLoadObjectConstant(crb, masm, getResultRegister(), constant, getBaseRegister(), getShift());
+            }
+
+            static void emitLoadObjectConstant(CompilationResultBuilder crb, AMD64MacroAssembler masm, Register resultReg, CompressibleConstant constant, Register baseReg, int shift) {
                 int referenceSize = ConfigurationValues.getObjectLayout().getReferenceSize();
-                Constant inputConstant = asConstantValue(getInput()).getConstant();
+                Constant inputConstant = asCompressed(constant);
                 if (masm.inlineObjects()) {
                     crb.recordInlineDataInCode(inputConstant);
                     if (referenceSize == 4) {
@@ -1588,9 +1645,8 @@ public class SubstrateAMD64Backend extends SubstrateBackend implements LIRGenera
                     }
                 }
                 if (!constant.isCompressed()) { // the result is expected to be uncompressed
-                    Register baseReg = getBaseRegister();
                     boolean preserveFlagsRegister = true;
-                    emitUncompressWithBaseRegister(masm, resultReg, baseReg, getShift(), preserveFlagsRegister);
+                    emitUncompressWithBaseRegister(masm, resultReg, baseReg, shift, preserveFlagsRegister);
                 }
             }
 
@@ -1770,10 +1826,11 @@ public class SubstrateAMD64Backend extends SubstrateBackend implements LIRGenera
         return factory;
     }
 
-    protected static class SubstrateAMD64LIRKindTool extends AMD64LIRKindTool implements AMD64SimdLIRKindTool {
+    private static final class SubstrateAMD64LIRKindTool extends AMD64LIRKindTool implements AMD64SimdLIRKindTool {
         @Override
         public LIRKind getNarrowOopKind() {
-            return LIRKind.compressedReference(AMD64Kind.QWORD);
+            PlatformKind kind = SubstrateOptions.useCompressedReferences() ? AMD64Kind.DWORD : AMD64Kind.QWORD;
+            return LIRKind.compressedReference(kind);
         }
 
         @Override

@@ -40,6 +40,7 @@ import static jdk.vm.ci.code.ValueUtil.asRegister;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import org.graalvm.nativeimage.ImageSingletons;
 
@@ -86,6 +87,7 @@ import jdk.graal.compiler.asm.BranchTargetOutOfBoundsException;
 import jdk.graal.compiler.asm.Label;
 import jdk.graal.compiler.asm.aarch64.AArch64Address;
 import jdk.graal.compiler.asm.aarch64.AArch64Address.AddressingMode;
+import jdk.graal.compiler.asm.aarch64.AArch64Assembler.ConditionFlag;
 import jdk.graal.compiler.asm.aarch64.AArch64Assembler.PrefetchMode;
 import jdk.graal.compiler.asm.aarch64.AArch64Assembler.ShiftType;
 import jdk.graal.compiler.asm.aarch64.AArch64MacroAssembler;
@@ -122,6 +124,7 @@ import jdk.graal.compiler.lir.LabelRef;
 import jdk.graal.compiler.lir.Opcode;
 import jdk.graal.compiler.lir.StandardOp.BlockEndOp;
 import jdk.graal.compiler.lir.StandardOp.LoadConstantOp;
+import jdk.graal.compiler.lir.SwitchStrategy;
 import jdk.graal.compiler.lir.Variable;
 import jdk.graal.compiler.lir.aarch64.AArch64AddressValue;
 import jdk.graal.compiler.lir.aarch64.AArch64BreakpointOp;
@@ -513,6 +516,17 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
 
         public SubstrateAArch64LIRGenerator(LIRKindTool lirKindTool, AArch64ArithmeticLIRGenerator arithmeticLIRGen, MoveFactory moveFactory, Providers providers, LIRGenerationResult lirGenRes) {
             super(lirKindTool, arithmeticLIRGen, null, moveFactory, providers, lirGenRes);
+        }
+
+        @Override
+        public void emitStrategySwitch(SwitchStrategy strategy, AllocatableValue key, LabelRef[] keyTargets, LabelRef defaultTarget) {
+            append(new SubstrateAArch64StrategySwitchOp(strategy, keyTargets, defaultTarget, key, AArch64LIRGenerator::toIntConditionFlag));
+        }
+
+        @Override
+        protected AArch64ControlFlow.StrategySwitchOp createStrategySwitchOp(SwitchStrategy strategy, LabelRef[] keyTargets, LabelRef defaultTarget, AllocatableValue key,
+                        Function<Condition, ConditionFlag> converter) {
+            return new SubstrateAArch64StrategySwitchOp(strategy, keyTargets, defaultTarget, key, converter);
         }
 
         @Override
@@ -1153,13 +1167,40 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
         }
     }
 
-    protected static class SubstrateAArch64MoveFactory extends AArch64MoveFactory {
+    public static final class SubstrateAArch64StrategySwitchOp extends AArch64ControlFlow.StrategySwitchOp {
+        public static final LIRInstructionClass<SubstrateAArch64StrategySwitchOp> TYPE = LIRInstructionClass.create(SubstrateAArch64StrategySwitchOp.class);
 
+        private SubstrateAArch64StrategySwitchOp(SwitchStrategy strategy, LabelRef[] keyTargets, LabelRef defaultTarget, AllocatableValue key,
+                        Function<Condition, ConditionFlag> converter) {
+            super(TYPE, strategy, keyTargets, defaultTarget, key, converter);
+        }
+
+        @Override
+        protected void emitObjectComparison(CompilationResultBuilder crb, AArch64MacroAssembler masm, Value keyValue, Register keyRegister, JavaConstant jc) {
+            if (jc instanceof CompressibleConstant constant && !jc.isNull()) {
+                /*
+                 * Strategy-switch object keys are uncompressed hub references, so compressed object
+                 * constants must be uncompressed before the pointer compare.
+                 */
+                assert keyValue.getPlatformKind().getSizeInBytes() == Long.BYTES : keyValue;
+                assert !constant.isCompressed() : constant;
+                int cmpSize = keyValue.getPlatformKind().getSizeInBytes() * Byte.SIZE;
+                try (ScratchRegister scratch = masm.getScratchRegister()) {
+                    Register scratchReg = scratch.getRegister();
+                    LoadCompressedObjectConstantOp.emitLoadObjectConstant(crb, masm, scratchReg, constant, ReservedRegisters.singleton().getHeapBaseRegister(), getCompressEncoding().getShift());
+                    masm.cmp(cmpSize, keyRegister, scratchReg);
+                }
+            } else {
+                super.emitObjectComparison(crb, masm, keyValue, keyRegister, jc);
+            }
+        }
+    }
+
+    private static class SubstrateAArch64MoveFactory extends AArch64MoveFactory {
         private final SharedMethod method;
         private final LIRKindTool lirKindTool;
 
-        protected SubstrateAArch64MoveFactory(SharedMethod method, LIRKindTool lirKindTool) {
-            super();
+        SubstrateAArch64MoveFactory(SharedMethod method, LIRKindTool lirKindTool) {
             this.method = method;
             this.lirKindTool = lirKindTool;
         }
@@ -1219,12 +1260,9 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
             return super.createStackLoad(dst, src);
         }
 
-        protected AArch64LIRInstruction loadObjectConstant(AllocatableValue dst, CompressibleConstant constant) {
-            if (ReferenceAccess.singleton().haveCompressedReferences()) {
-                RegisterValue heapBase = ReservedRegisters.singleton().getHeapBaseRegister().asValue();
-                return new LoadCompressedObjectConstantOp(dst, constant, heapBase, getCompressEncoding(), lirKindTool);
-            }
-            return new AArch64Move.LoadInlineConstant(constant, dst);
+        private AArch64LIRInstruction loadObjectConstant(AllocatableValue dst, CompressibleConstant constant) {
+            RegisterValue heapBase = ReservedRegisters.singleton().getHeapBaseRegister().asValue();
+            return new LoadCompressedObjectConstantOp(dst, constant, heapBase, getCompressEncoding(), lirKindTool);
         }
     }
 
@@ -1263,9 +1301,12 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
             /*
              * WARNING: must NOT have side effects. Preserve the flags register!
              */
-            Register resultReg = getResultRegister();
+            emitLoadObjectConstant(crb, masm, getResultRegister(), constant, getBaseRegister(), getShift());
+        }
+
+        static void emitLoadObjectConstant(CompilationResultBuilder crb, AArch64MacroAssembler masm, Register resultReg, CompressibleConstant constant, Register baseReg, int shift) {
             int referenceSize = ConfigurationValues.getObjectLayout().getReferenceSize();
-            Constant inputConstant = asConstantValue(getInput()).getConstant();
+            Constant inputConstant = asCompressed(constant);
             if (masm.inlineObjects()) {
                 crb.recordInlineDataInCode(inputConstant);
                 if (referenceSize == 4) {
@@ -1279,9 +1320,8 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
                 masm.adrpLdr(srcSize, resultReg, resultReg);
             }
             if (!constant.isCompressed()) { // the result is expected to be uncompressed
-                Register baseReg = getBaseRegister();
-                assert !baseReg.equals(Register.None) || getShift() != 0 : "no compression in place";
-                masm.add(64, resultReg, baseReg, resultReg, ShiftType.LSL, getShift());
+                assert !baseReg.equals(Register.None) || shift != 0 : "no compression in place";
+                masm.add(64, resultReg, baseReg, resultReg, ShiftType.LSL, shift);
             }
         }
 
@@ -1364,10 +1404,11 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
         return factory;
     }
 
-    protected static class SubstrateAArch64LIRKindTool extends AArch64LIRKindTool implements AArch64SimdLIRKindTool {
+    private static final class SubstrateAArch64LIRKindTool extends AArch64LIRKindTool implements AArch64SimdLIRKindTool {
         @Override
         public LIRKind getNarrowOopKind() {
-            return LIRKind.compressedReference(AArch64Kind.QWORD);
+            PlatformKind kind = SubstrateOptions.useCompressedReferences() ? AArch64Kind.DWORD : AArch64Kind.QWORD;
+            return LIRKind.compressedReference(kind);
         }
 
         @Override
