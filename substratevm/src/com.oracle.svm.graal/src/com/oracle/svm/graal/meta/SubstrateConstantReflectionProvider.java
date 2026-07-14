@@ -58,6 +58,11 @@ public class SubstrateConstantReflectionProvider extends SharedConstantReflectio
     }
 
     @Override
+    public boolean canRepresentAsImageHeapOffset(JavaConstant constant) {
+        return getImageHeapOffset(constant) != 0;
+    }
+
+    @Override
     public Integer identityHashCode(JavaConstant constant) {
         if (constant == null || constant.getJavaKind() != JavaKind.Object) {
             return null;
