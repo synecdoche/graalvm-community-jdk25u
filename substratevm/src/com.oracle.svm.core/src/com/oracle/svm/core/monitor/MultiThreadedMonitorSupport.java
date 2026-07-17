@@ -24,6 +24,11 @@
  */
 package com.oracle.svm.core.monitor;
 
+import static jdk.graal.compiler.nodes.extended.BranchProbabilityNode.EXTREMELY_SLOW_PATH_PROBABILITY;
+import static jdk.graal.compiler.nodes.extended.BranchProbabilityNode.FAST_PATH_PROBABILITY;
+import static jdk.graal.compiler.nodes.extended.BranchProbabilityNode.SLOW_PATH_PROBABILITY;
+import static jdk.graal.compiler.nodes.extended.BranchProbabilityNode.probability;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +40,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.graalvm.nativeimage.Platform;
 import org.graalvm.nativeimage.Platforms;
 
+import com.oracle.svm.core.AlwaysInline;
 import com.oracle.svm.core.NeverInline;
 import com.oracle.svm.core.Uninterruptible;
 import com.oracle.svm.core.WeakIdentityHashMap;
@@ -52,7 +58,11 @@ import com.oracle.svm.core.thread.ThreadStatus;
 import com.oracle.svm.core.thread.VMOperationControl;
 import com.oracle.svm.core.util.VMError;
 
+import jdk.graal.compiler.api.directives.GraalDirectives;
 import jdk.graal.compiler.core.common.SuppressFBWarnings;
+import jdk.graal.compiler.nodes.PiNode;
+import jdk.graal.compiler.nodes.SnippetAnchorNode;
+import jdk.graal.compiler.replacements.ReplacementsUtil;
 import jdk.graal.compiler.word.BarrieredAccess;
 import jdk.internal.misc.Unsafe;
 
@@ -249,42 +259,58 @@ public class MultiThreadedMonitorSupport extends MonitorSupport {
     }
 
     protected void monitorEnterImpl(Object obj, MonitorInflationCause cause) {
-        JavaMonitor monitor;
-        int monitorOffset = getMonitorOffset(obj);
-        if (monitorOffset != 0) {
-            /*
-             * Optimized path takes advantage of the knowledge that, when a new monitor object is
-             * created, it is not shared with other threads, so we can set its state without CAS. It
-             * also has acquisitions == 1 by construction, so we don't need to set that too.
-             */
-            long current = JavaMonitor.getCurrentThreadIdentity();
-            monitor = (JavaMonitor) BarrieredAccess.readObject(obj, monitorOffset);
-            if (monitor == null) {
-                long startTicks = JfrTicks.elapsedTicks();
-                JavaMonitor newMonitor = newMonitorLock();
-                newMonitor.setState(current);
-                monitor = (JavaMonitor) UNSAFE.compareAndExchangeReference(obj, monitorOffset, null, newMonitor);
-                if (monitor == null) { // successful
-                    JavaMonitorInflateEvent.emit(obj, startTicks, MonitorInflationCause.MONITOR_ENTER);
-                    newMonitor.setJfrOwner();
-                    return;
-                }
-            }
-        } else {
-            monitor = getOrCreateMonitor(obj, cause);
+        if (probability(SLOW_PATH_PROBABILITY, !tryInflatedMonitorEnter(obj, getMonitorOffset(obj)))) {
+            JavaMonitor lockObject = getOrCreateMonitor(obj, cause);
+            lockObject.monitorEnter(obj);
         }
-        monitor.monitorEnter(obj);
+    }
+
+    @AlwaysInline("monitor fast path")
+    static boolean tryInflatedMonitorEnter(Object obj, int monitorOffset) {
+        if (probability(FAST_PATH_PROBABILITY, monitorOffset != 0)) {
+            Object existingMonitor = BarrieredAccess.readObject(obj, monitorOffset);
+            return tryFastMonitorEnter(existingMonitor);
+        }
+        return false;
+    }
+
+    @AlwaysInline("monitor fast path")
+    protected static boolean tryFastMonitorEnter(Object existingMonitor) {
+        if (probability(FAST_PATH_PROBABILITY, existingMonitor != null)) {
+            if (probability(EXTREMELY_SLOW_PATH_PROBABILITY, !VMOperationControl.isOkayToBlock())) {
+                return false; // fail on slow-path
+            }
+
+            if (GraalDirectives.inIntrinsic()) {
+                ReplacementsUtil.dynamicAssert(existingMonitor instanceof JavaMonitor, "expecting inflated monitor");
+            } else {
+                assert existingMonitor instanceof JavaMonitor;
+            }
+
+            JavaMonitor inflatedMonitor = (JavaMonitor) PiNode.piCast(existingMonitor, JavaMonitor.class, false, true, SnippetAnchorNode.anchor());
+            return inflatedMonitor.tryFastMonitorEnter();
+        }
+        return false;
+    }
+
+    @AlwaysInline("monitor fast path")
+    public static int tryFastBalancedMonitorExit(Object existingMonitor) {
+        /*
+         * Because Graal enforces structured locking, and we do not support deflation, if we reach
+         * here, we must always have an inflated monitor.
+         */
+        ReplacementsUtil.dynamicAssert(existingMonitor instanceof JavaMonitor, "expecting inflated monitor");
+
+        JavaMonitor inflatedMonitor = (JavaMonitor) PiNode.piCast(existingMonitor, JavaMonitor.class, false, true, SnippetAnchorNode.anchor());
+        return inflatedMonitor.tryFastBalancedMonitorExit();
     }
 
     @SubstrateForeignCallTarget(stubCallingConvention = false)
-    @Uninterruptible(reason = "Avoid stack overflow error before yellow zone has been activated")
-    private static void slowPathMonitorExit(Object obj) {
+    @Uninterruptible(reason = "Avoid stack overflow error before yellow zone has been activated", calleeMustBe = false)
+    private static void slowPathMonitorExit(Object obj, int status) {
+        StackOverflowCheck.singleton().makeYellowZoneAvailable();
         try {
-            /*
-             * Monitor inflation cannot happen here because Graal enforces structured locking and
-             * unlocking, see comment below.
-             */
-            singleton().monitorExit(obj, MonitorInflationCause.VM_INTERNAL);
+            ((MultiThreadedMonitorSupport) singleton()).slowPathMonitorExit0(obj, status);
 
         } catch (OutOfMemoryError ex) {
             /*
@@ -303,6 +329,24 @@ public class MultiThreadedMonitorSupport extends MonitorSupport {
              * IllegalMonitorStateException.
              */
             throw VMError.shouldNotReachHere("Unexpected exception in MonitorSupport.monitorExit", ex);
+
+        } finally {
+            StackOverflowCheck.singleton().protectYellowZone();
+        }
+    }
+
+    private void slowPathMonitorExit0(Object obj, int status) {
+        if (status == JavaMonitor.FastMonitorExitStatus.MUST_SIGNAL_SUCCESSOR) {
+            Object existingMonitor = BarrieredAccess.readObject(obj, getMonitorOffset(obj));
+            ((JavaMonitor) existingMonitor).signalReleaseSuccessor();
+        } else if (status == JavaMonitor.FastMonitorExitStatus.USE_SLOW_PATH) {
+            /*
+             * Monitor inflation cannot happen here because Graal enforces structured locking and
+             * unlocking.
+             */
+            monitorExitImpl(obj, MonitorInflationCause.VM_INTERNAL);
+        } else {
+            throw VMError.shouldNotReachHere("Invalid status code from monitorexit fast-path: " + status);
         }
     }
 
@@ -319,18 +363,8 @@ public class MultiThreadedMonitorSupport extends MonitorSupport {
     }
 
     protected void monitorExitImpl(Object obj, MonitorInflationCause cause) {
-        JavaMonitor monitor;
-        int monitorOffset = getMonitorOffset(obj);
-        if (monitorOffset != 0) {
-            /*
-             * Optimized path: we know that a monitor object exists, due to structured locking, so
-             * one does not need to be created/inflated.
-             */
-            monitor = (JavaMonitor) BarrieredAccess.readObject(obj, monitorOffset);
-        } else {
-            monitor = getOrCreateMonitor(obj, cause);
-        }
-        monitor.monitorExit();
+        JavaMonitor lockObject = getOrCreateMonitor(obj, cause);
+        lockObject.monitorExit();
     }
 
     @Override

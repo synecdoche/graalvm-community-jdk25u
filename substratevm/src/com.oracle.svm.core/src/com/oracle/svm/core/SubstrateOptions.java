@@ -1631,4 +1631,7 @@ public class SubstrateOptions {
             }
         }
     };
+
+    @Option(help = "Emit fast path in monitor snippets", type = Expert) //
+    public static final HostedOptionKey<Boolean> UseMonitorFastPath = new HostedOptionKey<>(true);
 }

@@ -25,18 +25,28 @@
 package com.oracle.svm.core.monitor;
 
 import static jdk.graal.compiler.core.common.spi.ForeignCallDescriptor.CallSideEffect.HAS_SIDE_EFFECT;
+import static jdk.graal.compiler.nodes.extended.BranchProbabilityNode.FAST_PATH_PROBABILITY;
+import static jdk.graal.compiler.nodes.extended.BranchProbabilityNode.SLOW_PATH_PROBABILITY;
+import static jdk.graal.compiler.nodes.extended.BranchProbabilityNode.probability;
 import static jdk.vm.ci.meta.DeoptimizationAction.InvalidateReprofile;
 import static jdk.vm.ci.meta.DeoptimizationReason.NullCheckException;
 
 import java.util.Map;
+import java.util.Objects;
 
 import org.graalvm.word.LocationIdentity;
 
+import com.oracle.svm.core.SubstrateOptions;
 import com.oracle.svm.core.graal.snippets.NodeLoweringProvider;
 import com.oracle.svm.core.graal.snippets.SubstrateTemplates;
+import com.oracle.svm.core.hub.DynamicHub;
+import com.oracle.svm.core.hub.DynamicHubCompanion;
+import com.oracle.svm.core.meta.SharedMethod;
+import com.oracle.svm.core.meta.SharedType;
 import com.oracle.svm.core.snippets.SnippetRuntime;
 import com.oracle.svm.core.snippets.SnippetRuntime.SubstrateForeignCallDescriptor;
 import com.oracle.svm.core.util.VMError;
+import com.oracle.svm.util.ReflectionUtil;
 
 import jdk.graal.compiler.api.replacements.Snippet;
 import jdk.graal.compiler.core.common.spi.ForeignCallDescriptor;
@@ -44,13 +54,16 @@ import jdk.graal.compiler.core.common.type.StampFactory;
 import jdk.graal.compiler.graph.Node;
 import jdk.graal.compiler.graph.Node.ConstantNodeParameter;
 import jdk.graal.compiler.graph.Node.NodeIntrinsic;
+import jdk.graal.compiler.nodes.ConstantNode;
 import jdk.graal.compiler.nodes.PiNode;
 import jdk.graal.compiler.nodes.ValueNode;
 import jdk.graal.compiler.nodes.calc.IsNullNode;
 import jdk.graal.compiler.nodes.extended.ForeignCallNode;
 import jdk.graal.compiler.nodes.extended.GuardingNode;
+import jdk.graal.compiler.nodes.extended.LoadHubNode;
 import jdk.graal.compiler.nodes.extended.MembarNode;
 import jdk.graal.compiler.nodes.java.AccessMonitorNode;
+import jdk.graal.compiler.nodes.java.LoadFieldNode;
 import jdk.graal.compiler.nodes.java.MonitorEnterNode;
 import jdk.graal.compiler.nodes.java.MonitorExitNode;
 import jdk.graal.compiler.nodes.spi.LoweringTool;
@@ -61,12 +74,21 @@ import jdk.graal.compiler.replacements.SnippetTemplate;
 import jdk.graal.compiler.replacements.SnippetTemplate.Arguments;
 import jdk.graal.compiler.replacements.SnippetTemplate.SnippetInfo;
 import jdk.graal.compiler.replacements.Snippets;
+import jdk.graal.compiler.word.BarrieredAccess;
+import jdk.vm.ci.meta.ResolvedJavaField;
+import jdk.vm.ci.meta.ResolvedJavaType;
 import jdk.vm.ci.meta.SpeculationLog;
 
 /**
  * Snippets for lowering of monitor nodes (the nodes representing the Java "synchronized" keyword).
- * There is currently no fast path, because the {@link java.util.concurrent.locks.ReentrantLock}
- * used for monitor operations cannot be inlined in a snippet without changes or code duplication.
+ * The snippets inline the fast paths of {@link MonitorSupport} to avoid a runtime call for
+ * uncontendend lock/unlock operations.
+ *
+ * The fast paths require the {@link DynamicHub#getMonitorOffset() monitor offset} of the locked
+ * object. To allow value numbering and constant folding of the monitor offset, it is loaded already
+ * during high-tier lowering and passed as an argument to the snippets used for low-tier lowering.
+ * The monitor nodes have a VM-dependent field to store such additional information:
+ * {@link AccessMonitorNode#setObjectData}.
  *
  * For AOT compiled code, the null check for the object is already inserted by the bytecode parser,
  * i.e., the object is already guaranteed to be non-null. For JIT compiled code though the null
@@ -88,7 +110,17 @@ public class MonitorSnippets extends SubstrateTemplates implements Snippets {
         /* Kill all memory locations, like {@link MonitorEnterNode#getLocationIdentity()}. */
         MembarNode.memoryBarrier(MembarNode.FenceKind.NONE, LocationIdentity.any());
 
-        callSlowPath(SLOW_PATH_MONITOR_ENTER, obj);
+        callSlowPathMonitorEnter(SLOW_PATH_MONITOR_ENTER, obj);
+    }
+
+    @Snippet
+    protected static void fastMonitorEnterSnippet(Object obj, int monitorOffset) {
+        /* Kill all memory locations, like {@link MonitorEnterNode#getLocationIdentity()}. */
+        MembarNode.memoryBarrier(MembarNode.FenceKind.NONE, LocationIdentity.any());
+
+        if (probability(SLOW_PATH_PROBABILITY, !MultiThreadedMonitorSupport.tryInflatedMonitorEnter(obj, monitorOffset))) {
+            callSlowPathMonitorEnter(SLOW_PATH_MONITOR_ENTER, obj);
+        }
     }
 
     @Snippet
@@ -96,14 +128,36 @@ public class MonitorSnippets extends SubstrateTemplates implements Snippets {
         /* Kill all memory locations, like {@link MonitorEnterNode#getLocationIdentity()}. */
         MembarNode.memoryBarrier(MembarNode.FenceKind.NONE, LocationIdentity.any());
 
-        callSlowPath(SLOW_PATH_MONITOR_EXIT, obj);
+        callSlowPathMonitorExit(SLOW_PATH_MONITOR_EXIT, obj, JavaMonitor.FastMonitorExitStatus.USE_SLOW_PATH);
+    }
+
+    @Snippet
+    protected static void fastMonitorExitSnippet(Object obj, int monitorOffset) {
+        /* Kill all memory locations, like {@link MonitorEnterNode#getLocationIdentity()}. */
+        MembarNode.memoryBarrier(MembarNode.FenceKind.NONE, LocationIdentity.any());
+
+        int status = JavaMonitor.FastMonitorExitStatus.USE_SLOW_PATH;
+        if (probability(FAST_PATH_PROBABILITY, monitorOffset != 0)) {
+            Object existingMonitor = BarrieredAccess.readObject(obj, monitorOffset);
+            status = MultiThreadedMonitorSupport.tryFastBalancedMonitorExit(existingMonitor);
+        }
+        if (probability(SLOW_PATH_PROBABILITY, status != JavaMonitor.FastMonitorExitStatus.SUCCESS)) {
+            callSlowPathMonitorExit(SLOW_PATH_MONITOR_EXIT, obj, status);
+        }
     }
 
     @NodeIntrinsic(value = ForeignCallNode.class)
-    protected static native void callSlowPath(@ConstantNodeParameter ForeignCallDescriptor descriptor, Object obj);
+    protected static native void callSlowPathMonitorEnter(@ConstantNodeParameter ForeignCallDescriptor descriptor, Object obj);
+
+    @NodeIntrinsic(value = ForeignCallNode.class)
+    protected static native void callSlowPathMonitorExit(@ConstantNodeParameter ForeignCallDescriptor descriptor, Object obj, int status);
+
+    private final ResolvedJavaField monitorOffsetField;
 
     private final SnippetInfo monitorEnter;
     private final SnippetInfo monitorExit;
+    private final SnippetInfo fastMonitorEnter;
+    private final SnippetInfo fastMonitorExit;
 
     @SuppressWarnings("this-escape")
     protected MonitorSnippets(OptionValues options, Providers providers) {
@@ -111,6 +165,9 @@ public class MonitorSnippets extends SubstrateTemplates implements Snippets {
 
         this.monitorEnter = snippet(providers, MonitorSnippets.class, "monitorEnterSnippet");
         this.monitorExit = snippet(providers, MonitorSnippets.class, "monitorExitSnippet");
+        this.fastMonitorEnter = snippet(providers, MonitorSnippets.class, "fastMonitorEnterSnippet");
+        this.fastMonitorExit = snippet(providers, MonitorSnippets.class, "fastMonitorExitSnippet");
+        this.monitorOffsetField = providers.getMetaAccess().lookupJavaField(ReflectionUtil.lookupField(DynamicHub.class, "monitorOffset"));
     }
 
     protected void registerLowerings(Map<Class<? extends Node>, NodeLoweringProvider<?>> lowerings) {
@@ -120,16 +177,6 @@ public class MonitorSnippets extends SubstrateTemplates implements Snippets {
     }
 
     protected class MonitorLowering implements NodeLoweringProvider<AccessMonitorNode> {
-
-        @Override
-        public final void lower(AccessMonitorNode node, LoweringTool tool) {
-            if (tool.getLoweringStage() == LoweringTool.StandardLoweringStage.LOW_TIER) {
-                assert StampTool.isPointerNonNull(node.object()) : "null check is inserted by high-tier lowering";
-                lowerLowTier(node, tool);
-            } else {
-                lowerHighTier(node, tool);
-            }
-        }
 
         protected void lowerHighTier(AccessMonitorNode node, LoweringTool tool) {
             ValueNode object = node.object();
@@ -144,20 +191,86 @@ public class MonitorSnippets extends SubstrateTemplates implements Snippets {
                 GuardingNode nullCheck = tool.createGuard(node, node.graph().unique(IsNullNode.create(object)), NullCheckException, InvalidateReprofile, SpeculationLog.NO_SPECULATION, true, null);
                 node.setObject(node.graph().addOrUnique(PiNode.create(object, StampFactory.objectNonNull(), (ValueNode) nullCheck)));
             }
+
+            if (node.getObjectData() == null && useFastPath(node)) {
+
+                /*
+                 * The object and the pre-computed monitor offset must remain in sync, so for
+                 * simplicity we modify the object only when the monitor offset was not yet
+                 * computed.
+                 */
+                if (node.object().isJavaConstant()) {
+                    /*
+                     * We cannot use the SnippetReflectionProvider to unwrap the constant, because
+                     * runtime compilation in separate isolates cannot unwrap arbitrary constants.
+                     * But since we only need to replace Class/DynamicHub objects, unwrapping type
+                     * constants is enough.
+                     */
+                    ResolvedJavaType constantType = tool.getConstantReflection().asJavaType(node.object().asJavaConstant());
+                    if (constantType != null) {
+                        DynamicHubCompanion replacedObject = ((SharedType) constantType).getHub().getCompanion();
+                        /*
+                         * For wrapping the replaced object, we can use the
+                         * SnippetReflectionProvider because all DynamicHubCompanion objects are in
+                         * the image heap.
+                         */
+                        node.setObject(ConstantNode.forConstant(tool.getSnippetReflection().forObject(replacedObject), tool.getMetaAccess(), node.graph()));
+                    }
+                }
+
+                ValueNode hub = node.graph().addOrUnique(LoadHubNode.create(node.object(), tool.getStampProvider(), tool.getMetaAccess(), tool.getConstantReflection()));
+
+                LoadFieldNode monitorOffset = node.graph().add(LoadFieldNode.create(node.graph().getAssumptions(), hub, monitorOffsetField));
+                node.graph().addBeforeFixed(node, monitorOffset);
+                node.setObjectData(monitorOffset);
+                monitorOffset.lower(tool);
+            }
         }
 
         protected void lowerLowTier(AccessMonitorNode node, LoweringTool tool) {
+            if (useFastPath(node)) {
+                lowerLowTier(node, tool, fastMonitorEnter, fastMonitorExit, true);
+            } else {
+                lowerLowTier(node, tool, monitorEnter, monitorExit, false);
+            }
+        }
+
+        protected void lowerLowTier(AccessMonitorNode node, LoweringTool tool, SnippetInfo enterSnippet, SnippetInfo exitSnippet, boolean withOffsetArg) {
             SnippetInfo snippet;
             if (node instanceof MonitorEnterNode) {
-                snippet = monitorEnter;
+                snippet = enterSnippet;
             } else if (node instanceof MonitorExitNode) {
-                snippet = monitorExit;
+                snippet = exitSnippet;
             } else {
                 throw VMError.shouldNotReachHereUnexpectedInput(node); // ExcludeFromJacocoGeneratedReport
             }
             Arguments args = new Arguments(snippet, node.graph().getGuardsStage(), tool.getLoweringStage());
             args.add("obj", node.object());
+            if (withOffsetArg) {
+                args.add("monitorOffset", Objects.requireNonNull(node.getObjectData()));
+            }
             template(tool, node, args).instantiate(tool.getMetaAccess(), node, SnippetTemplate.DEFAULT_REPLACER, args);
+        }
+
+        protected boolean useFastPath(AccessMonitorNode node) {
+            /*
+             * The pre-loading of the hub and monitor offset cannot be done in deoptimization target
+             * methods: value numbering of these nodes would lead to additional values live at
+             * deoptimization entry points. Since peak performance is not critical in deoptimization
+             * target methods, we do not use fast paths at all for these methods.
+             */
+            return SubstrateOptions.UseMonitorFastPath.getValue() &&
+                            !((SharedMethod) node.graph().method()).isDeoptTarget();
+        }
+
+        @Override
+        public final void lower(AccessMonitorNode node, LoweringTool tool) {
+            if (tool.getLoweringStage() == LoweringTool.StandardLoweringStage.LOW_TIER) {
+                assert StampTool.isPointerNonNull(node.object()) : "null check is inserted by high-tier lowering";
+                lowerLowTier(node, tool);
+            } else {
+                lowerHighTier(node, tool);
+            }
         }
     }
 }

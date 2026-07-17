@@ -82,7 +82,7 @@ public final class JavaMonitor extends JavaMonitorQueuedSynchronizer {
         setJfrOwner();
     }
 
-    public void setJfrOwner() {
+    private void setJfrOwner() {
         latestJfrTid = SubstrateJVM.getCurrentThreadId();
     }
 
@@ -95,7 +95,7 @@ public final class JavaMonitor extends JavaMonitorQueuedSynchronizer {
         latestJfrTid = JavaThreads.getThreadId(thread);
     }
 
-    public void monitorExit() {
+    void monitorExit() {
         release(1);
     }
 
@@ -245,7 +245,7 @@ public final class JavaMonitor extends JavaMonitorQueuedSynchronizer {
      * between {@link IsolateThread}s, so we must use the unique ids assigned to {@link Thread}s.
      */
     @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
-    static long getCurrentThreadIdentity() {
+    private static long getCurrentThreadIdentity() {
         return JavaThreads.getCurrentThreadId();
     }
 
@@ -253,7 +253,7 @@ public final class JavaMonitor extends JavaMonitorQueuedSynchronizer {
         return JavaThreads.getThreadId(thread);
     }
 
-    public boolean tryFastMonitorEnter() {
+    boolean tryFastMonitorEnter() {
         long current = getCurrentThreadIdentity();
         long c = getState();
         if (probability(FREQUENT_PROBABILITY, c == 0)) {
@@ -278,7 +278,7 @@ public final class JavaMonitor extends JavaMonitorQueuedSynchronizer {
     }
 
     /** @return one of the constants of {@link FastMonitorExitStatus}. */
-    public int tryFastBalancedMonitorExit() {
+    int tryFastBalancedMonitorExit() {
         // Note that JNI forbids exiting a monitor acquired with monitorenter and breaking balancing
         ReplacementsUtil.dynamicAssert(getState() == getCurrentThreadIdentity(), "compiler must enforce balanced monitor use");
 
