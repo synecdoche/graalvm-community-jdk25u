@@ -3,6 +3,7 @@
 This changelog summarizes major changes to GraalVM Native Image.
 
 ## GraalVM for JDK 25
+* (GR-77637) Fast inline execution paths and optimized spinning for `synchronized`. This generally improves locking performance, but inlined fast paths might increase image size. They can be disabled with `-H:-UseMonitorFastPath`.
 * (GR-77358) Introduced compressed (32-bit) references, enabled by default. This generally improves memory usage and performance, but limits heap memory to 32 GB. Disable with `-H:-UseCompressedReferences`.
 * (GR-49923) Make bundle path maps portable across platforms. Bundle format version is now 1.0. Bundles prior to 1.0 can still be used (backward compatible).
 * (GR-74889) Added Windows support for Native Image JFR recordings and heap dumps.
