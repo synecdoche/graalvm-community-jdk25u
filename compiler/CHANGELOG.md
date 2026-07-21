@@ -2,6 +2,13 @@
 
 This changelog summarizes newly introduced optimizations and other compiler related changes.
 
+## GraalVM 25.3 (Internal Version 25.3.4.1)
+* (GR-77137) Add new priority inlining algorithm that does extensive analysis of the call graph when making
+  inlining decisions (see `PriorityInliningPhase` for details). It is now the default inliner. To use the old
+  inliner now requires setting the `UsePriorityInlining` option to false (e.g. `-Djdk.graal.UsePriorityInlining=false`).
+  Also added `MethodDuplicationPhase`, which duplicates selected control-flow paths within a method to expose further
+  optimization opportunities.
+
 ## GraalVM for JDK 25 (Internal Version 25.0.0)
 * (GR-60088): This PR adds the `org.graalvm.nativeimage.libgraal` SDK module. With this module, all logic for building
   libgraal has been moved into the compiler suite in a new `jdk.graal.compiler.libgraal` module

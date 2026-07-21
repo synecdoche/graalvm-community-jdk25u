@@ -294,13 +294,13 @@ import jdk.graal.compiler.phases.BasePhase;
 import jdk.graal.compiler.phases.FloatingGuardPhase;
 import jdk.graal.compiler.phases.PhaseSuite;
 import jdk.graal.compiler.phases.Speculative;
+import jdk.graal.compiler.phases.common.AbstractInliningPhase;
 import jdk.graal.compiler.phases.common.AddressLoweringPhase;
 import jdk.graal.compiler.phases.common.CanonicalizerPhase;
 import jdk.graal.compiler.phases.common.DeoptimizationGroupingPhase;
 import jdk.graal.compiler.phases.common.FrameStateAssignmentPhase;
 import jdk.graal.compiler.phases.common.LoopSafepointInsertionPhase;
 import jdk.graal.compiler.phases.common.TransplantGraphsPhase;
-import jdk.graal.compiler.phases.common.inlining.InliningPhase;
 import jdk.graal.compiler.phases.tiers.HighTierContext;
 import jdk.graal.compiler.phases.tiers.LowTierContext;
 import jdk.graal.compiler.phases.tiers.MidTierContext;
@@ -598,6 +598,10 @@ public class NativeImageGenerator {
                 runtimeConfiguration = new HostedRuntimeConfigurationBuilder(options, bb.getHostVM(), hUniverse, hMetaAccess,
                                 bb.getProviders(MultiMethod.ORIGINAL_METHOD), classInitializationSupport, platformConfig,
                                 bb.getSnippetReflectionProvider()).build();
+                if (GraalConfiguration.hostedInstance() instanceof HostedGraalConfiguration hostedGraalConfiguration) {
+                    hostedGraalConfiguration.setRuntimeConfiguration(runtimeConfiguration);
+                    hostedGraalConfiguration.setHostedUniverse(hUniverse);
+                }
 
                 registerGraphBuilderPlugins(featureHandler, runtimeConfiguration, (HostedProviders) runtimeConfiguration.getProviders(), bb.getMetaAccess(), aUniverse,
                                 nativeLibraries, loader, ParsingReason.AOTCompilation, bb.getAnnotationSubstitutionProcessor(),
@@ -1126,6 +1130,7 @@ public class NativeImageGenerator {
          * Check if any configuration factory class was registered. If not, register the basic one.
          */
         HostedConfiguration.setDefaultIfEmpty();
+        GraalConfiguration.setHostedInstanceIfEmpty(new HostedGraalConfiguration());
         GraalConfiguration.setDefaultIfEmpty();
     }
 
@@ -1567,7 +1572,7 @@ public class NativeImageGenerator {
             position = GraalConfiguration.hostedInstance().createHostedInliners(highTier);
         } else {
             /* Find the runtime inliner. */
-            position = highTier.findPhase(InliningPhase.class);
+            position = highTier.findPhase(AbstractInliningPhase.class);
         }
         if (position != null) {
             /* These two phases must be after all method inlining. */
@@ -1600,7 +1605,7 @@ public class NativeImageGenerator {
             lowTier.appendPhase(new VerifyNoGuardsPhase());
 
             /* Disable the Graal method inlining, since we have our own inlining system. */
-            highTier.removePhase(InliningPhase.class);
+            highTier.removePhase(AbstractInliningPhase.class);
 
             /* Remove phases that are not suitable for AOT compilation. */
             highTier.removePhase(ConvertDeoptimizeToGuardPhase.class);

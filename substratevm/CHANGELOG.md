@@ -2,6 +2,9 @@
 
 This changelog summarizes major changes to GraalVM Native Image.
 
+## GraalVM 25.3 (Internal Version 25.3.4.1)
+* (GR-77137) Added `SubstratePriorityInliningPhase` to leverage the new priority inliner added to the compiler suite.
+
 ## GraalVM for JDK 25
 * (GR-77358) Introduced compressed (32-bit) references, enabled by default. This generally improves memory usage and performance, but limits heap memory to 32 GB. Disable with `-H:-UseCompressedReferences`.
 * (GR-74889) Added Windows support for Native Image JFR recordings and heap dumps.
