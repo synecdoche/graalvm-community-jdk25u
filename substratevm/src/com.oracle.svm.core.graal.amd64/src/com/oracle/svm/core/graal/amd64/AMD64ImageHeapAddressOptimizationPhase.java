@@ -136,16 +136,6 @@ class AMD64ImageHeapAddressOptimizationPhase extends BasePhase<CoreProviders> {
                             baseNode.asJavaConstant() instanceof CompressibleConstant baseConstant &&
                             baseConstant.isNonNull()) {
 
-                if (AMD64MemoryMaskingAndFencing.isEnabled() && address.getIndex() != null) {
-                    /*
-                     * If the MemoryMaskingAndFencing mitigation is enabled, then we cannot allow
-                     * the optimization if index is not null. Indeed, if the index is not-null then
-                     * the final address will be [r14 + reg * scale + displacement] re-introducing a
-                     * non-masked register-based address.
-                     */
-                    continue;
-                }
-
                 if (canOptimize(baseConstant, constantReflection)) {
                     AMD64ImageHeapAddressNode replacement = new AMD64ImageHeapAddressNode(baseConstant, address.getIndex(), address.getScale(), address.getDisplacement());
                     address.replaceAndDelete(graph.unique(replacement));
@@ -162,8 +152,8 @@ class AMD64ImageHeapAddressOptimizationPhase extends BasePhase<CoreProviders> {
 @Platforms(Platform.AMD64.class)
 class AMD64ImageHeapAddressFeature implements InternalFeature {
     @Override
-    public void registerGraalPhases(Providers providers, Suites suites, boolean hosted, boolean fallback) {
-        if (!fallback && AMD64ImageHeapAddressOptimizationPhase.phaseEnabled() && !(hosted && SubstrateOptions.useEconomyCompilerConfig())) {
+    public void registerGraalPhases(Providers providers, Suites suites, boolean hosted) {
+        if (AMD64ImageHeapAddressOptimizationPhase.phaseEnabled() && !(hosted && SubstrateOptions.useEconomyCompilerConfig())) {
             /*
              * Since this phase does not open up any new optimization potential, it should be done
              * as late as possible, i.e., just before the final schedule.

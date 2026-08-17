@@ -1474,7 +1474,6 @@ public class SubstrateAMD64Backend extends SubstrateBackend implements LIRGenera
             super(TYPE, strategy, keyTargets, defaultTarget, key, scratch);
         }
 
-        @Override
         protected void emitObjectComparison(CompilationResultBuilder crb, AMD64MacroAssembler masm, Register keyRegister, Register scratchRegister, JavaConstant jc) {
             if (jc instanceof CompressibleConstant constant && !jc.isNull()) {
                 /*
@@ -1485,8 +1484,6 @@ public class SubstrateAMD64Backend extends SubstrateBackend implements LIRGenera
                 SubstrateAMD64MoveFactory.LoadCompressedObjectConstantOp.emitLoadObjectConstant(crb, masm, scratchRegister, constant, ReservedRegisters.singleton().getHeapBaseRegister(),
                                 getCompressEncoding().getShift());
                 masm.cmpptr(keyRegister, scratchRegister);
-            } else {
-                super.emitObjectComparison(crb, masm, keyRegister, scratchRegister, jc);
             }
         }
     }
@@ -1561,12 +1558,10 @@ public class SubstrateAMD64Backend extends SubstrateBackend implements LIRGenera
             return super.createStackLoad(dst, src);
         }
 
-        @Override
         public Register getPreferredGeneralPurposeScratchRegister() {
             return ReservedRegisters.singleton().getCodeBaseRegister();
         }
 
-        @Override
         public boolean canInlineConstant(Constant c) {
             if (SubstrateOptions.useCompressedReferences()) {
                 if (CompressedNullConstant.COMPRESSED_NULL.equals(c)) {

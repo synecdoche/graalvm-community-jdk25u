@@ -1175,7 +1175,6 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
             super(TYPE, strategy, keyTargets, defaultTarget, key, converter);
         }
 
-        @Override
         protected void emitObjectComparison(CompilationResultBuilder crb, AArch64MacroAssembler masm, Value keyValue, Register keyRegister, JavaConstant jc) {
             if (jc instanceof CompressibleConstant constant && !jc.isNull()) {
                 /*
@@ -1190,8 +1189,6 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
                     LoadCompressedObjectConstantOp.emitLoadObjectConstant(crb, masm, scratchReg, constant, ReservedRegisters.singleton().getHeapBaseRegister(), getCompressEncoding().getShift());
                     masm.cmp(cmpSize, keyRegister, scratchReg);
                 }
-            } else {
-                super.emitObjectComparison(crb, masm, keyValue, keyRegister, jc);
             }
         }
     }
