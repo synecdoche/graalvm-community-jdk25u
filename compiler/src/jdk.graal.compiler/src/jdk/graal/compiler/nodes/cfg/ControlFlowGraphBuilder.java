@@ -44,6 +44,15 @@ public class ControlFlowGraphBuilder {
         return this;
     }
 
+    /**
+     * Alias for {@link #backendBlocks(boolean)} matching the upstream builder API, where the
+     * property was renamed to {@code modifiableBlocks}.
+     */
+    public ControlFlowGraphBuilder modifiableBlocks(boolean modifiableBlocksParam) {
+        this.backendBlocks = modifiableBlocksParam;
+        return this;
+    }
+
     public ControlFlowGraphBuilder connectBlocks(boolean connectBlocksParam) {
         this.connectBlocks = connectBlocksParam;
         return this;

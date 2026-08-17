@@ -1110,6 +1110,23 @@ public final class StructuredGraph extends Graph implements JavaMethodContext {
     }
 
     /**
+     * @return the calling context of this graph if it is available, else {@code null}
+     */
+    public NodeSourcePosition getCallerContext() {
+        return callerContext;
+    }
+
+    /**
+     * Gets the profiling info for a given method that is or will be part of this graph, taking into
+     * account the {@link #getProfileProvider()}. The {@code context} parameter exists for upstream
+     * API compatibility; this branch's {@link ProfileProvider} has no context-sensitive lookup, so
+     * it is ignored.
+     */
+    public ProfilingInfo getProfilingInfo(NodeSourcePosition context, ResolvedJavaMethod m) {
+        return getProfilingInfo(m);
+    }
+
+    /**
      * Gets the profiling info for a given method that is or will be part of this graph, taking into
      * account the {@link #getProfileProvider()}.
      */

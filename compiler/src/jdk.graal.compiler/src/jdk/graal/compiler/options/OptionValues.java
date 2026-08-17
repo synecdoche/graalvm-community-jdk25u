@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -273,5 +274,29 @@ public class OptionValues {
     private static boolean excludeOptionFromHelp(OptionDescriptor desc) {
         /* Filter out debug options. */
         return desc.getOptionType() == OptionType.Debug;
+    }
+
+    /**
+     * Derives new option values where the respective keys are set to the respective values. The
+     * values are set also if they would be the default value for their respective key.
+     */
+    public OptionValues derive(UnmodifiableEconomicMap<OptionKey<?>, Object> changedValues) {
+        return changedValues.isEmpty() ? this : new OptionValues(this, changedValues);
+    }
+
+    /**
+     * Derives new option values where the given key is set to the given value.
+     * <p>
+     * The key is omitted if its current effective value already equals {@code value}. For keys with
+     * a computed {@link OptionKey#getValue(OptionValues)} implementation, this means that the
+     * derived options preserve the current "unset" state instead of forcing an explicit setting.
+     * Callers that need to materialize several interacting option updates at once should use
+     * {@link #derive(UnmodifiableEconomicMap)} or chain calls in the desired order.
+     */
+    public OptionValues derive(OptionKey<?> key, Object value) {
+        if (Objects.equals(key.getValue(this), value)) {
+            return this;
+        }
+        return new OptionValues(this, key, value);
     }
 }

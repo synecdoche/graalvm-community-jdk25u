@@ -5093,10 +5093,18 @@ public abstract class BytecodeParser extends CoreProvidersDelegate implements Gr
             if (handler != null) {
                 JavaType catchType = handler.getCatchType();
                 // catch type can be null for java.lang.Throwable which catches everything
-                inOOMETry = catchType != null && catchType.getName().equals("Ljava/lang/OutOfMemoryError;");
+                inOOMETry = isDirectOutOfMemoryErrorCatch(catchType);
             }
         }
         return inOOMETry;
+    }
+
+    /**
+     * Returns true only for a direct {@code catch (OutOfMemoryError)}. Broader catch clauses and
+     * bytecode catch-all entries are intentionally not used for automatic allocation OOME edges.
+     */
+    public static boolean isDirectOutOfMemoryErrorCatch(JavaType catchType) {
+        return catchType != null && catchType.getName().equals("Ljava/lang/OutOfMemoryError;");
     }
 
     private void createNewInstance(ResolvedJavaType resolvedType) {

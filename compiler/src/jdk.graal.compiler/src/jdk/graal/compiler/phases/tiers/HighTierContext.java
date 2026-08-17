@@ -50,8 +50,12 @@ public class HighTierContext extends CoreProvidersDelegate {
     }
 
     public PhaseSuite<HighTierContext> getGraphBuilderSuiteForCallee(Invoke invoke) {
+        return getGraphBuilderSuiteForCallee(invoke.isInOOMETry());
+    }
+
+    public PhaseSuite<HighTierContext> getGraphBuilderSuiteForCallee(boolean forceOOMEExceptionEdges) {
         PhaseSuite<HighTierContext> regularGraphBuilder = graphBuilderSuite;
-        if (invoke.isInOOMETry()) {
+        if (forceOOMEExceptionEdges) {
             PhaseSuite<HighTierContext> copied = regularGraphBuilder.copy();
             GraphBuilderPhase originalBuilder = (GraphBuilderPhase) (copied.findPhase(GraphBuilderPhase.class).previous());
             GraphBuilderConfiguration newConfig = originalBuilder.getGraphBuilderConfig().copy().withOOMEExceptionEdges(ExplicitOOMEExceptionEdges.ForceOOMEExceptionEdges);

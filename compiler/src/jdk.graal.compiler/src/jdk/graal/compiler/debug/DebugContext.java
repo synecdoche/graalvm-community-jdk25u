@@ -767,6 +767,15 @@ public final class DebugContext implements AutoCloseable {
         return currentScope != null && currentScope.isCountEnabled();
     }
 
+    /**
+     * Determines if counters can be enabled in this object. Upstream this only checks the
+     * (unscoped) counters; on this branch, which still has scoped metrics, scope-enabled counters
+     * are included as well.
+     */
+    public boolean areCountersEnabled() {
+        return immutable.unscopedCounters != null || isCountEnabled();
+    }
+
     public boolean isMemUseTrackingEnabled() {
         return currentScope != null && currentScope.isMemUseTrackingEnabled();
     }
