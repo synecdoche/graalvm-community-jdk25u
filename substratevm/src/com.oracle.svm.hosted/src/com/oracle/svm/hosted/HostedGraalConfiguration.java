@@ -33,8 +33,8 @@ import com.oracle.svm.hosted.code.CompileQueue;
 import com.oracle.svm.hosted.meta.HostedUniverse;
 import com.oracle.svm.hosted.pgo.profiles.PGOProfilesLookup;
 import com.oracle.svm.hosted.phases.priorityinline.SubstratePriorityInliningPhase;
-import com.oracle.svm.shared.option.HostedOptionValues;
-import com.oracle.svm.shared.util.VMError;
+import com.oracle.svm.core.option.HostedOptionValues;
+import com.oracle.svm.core.util.VMError;
 
 import jdk.graal.compiler.phases.BasePhase;
 import jdk.graal.compiler.phases.PhaseSuite;
@@ -83,7 +83,7 @@ public class HostedGraalConfiguration extends GraalConfiguration {
         highTier.prependPhase(canonicalizer);
         var position = highTier.findPhase(CanonicalizerPhase.class);
         position.add(new BoxNodeIdentityPhase());
-        position.add(new SubstratePriorityInliningPhase(canonicalizer, HostedOptionValues.singleton().get(), runtimeConfiguration, CompileQueue.getOptimisticOpts(), hUniverse, highTier,
+        position.add(new SubstratePriorityInliningPhase(canonicalizer, HostedOptionValues.singleton(), runtimeConfiguration, CompileQueue.getOptimisticOpts(), hUniverse, highTier,
                         PGOProfilesLookup.singletonOrNull()));
         return position;
     }

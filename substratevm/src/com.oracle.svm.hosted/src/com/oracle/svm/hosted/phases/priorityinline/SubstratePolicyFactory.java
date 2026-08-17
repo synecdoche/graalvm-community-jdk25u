@@ -41,16 +41,12 @@ import static jdk.graal.compiler.phases.common.priorityinline.PriorityInliningPh
 import static jdk.graal.compiler.phases.common.priorityinline.PriorityInliningPhase.Options.TypicalGraphSize;
 import static jdk.graal.compiler.phases.common.priorityinline.PriorityInliningPhase.Options.TypicalGraphSizeInvokeBonus;
 
-import java.util.List;
 
 import org.graalvm.nativeimage.ImageInfo;
-import org.graalvm.nativeimage.ImageSingletons;
 import org.graalvm.nativeimage.Platform;
 import org.graalvm.nativeimage.Platforms;
 
-import com.oracle.svm.core.interpreter.InterpreterSupport;
-import com.oracle.svm.hosted.BytecodeHandlerFeature;
-import com.oracle.svm.shared.option.HostedOptionKey;
+import com.oracle.svm.core.option.HostedOptionKey;
 
 import jdk.graal.compiler.debug.DebugCloseable;
 import jdk.graal.compiler.debug.DebugContext;
@@ -69,11 +65,7 @@ import jdk.graal.compiler.phases.common.priorityinline.TunableOptionKey;
 import jdk.graal.compiler.phases.common.priorityinline.nodes.CallTreeNode;
 import jdk.graal.compiler.phases.common.priorityinline.nodes.CutoffNode;
 import jdk.graal.compiler.phases.common.priorityinline.nodes.ParentNode;
-import jdk.graal.compiler.phases.common.priorityinline.tuning.BytecodeInterpreterTuningPolicy;
-import jdk.graal.compiler.phases.common.priorityinline.tuning.CompositeTuningPolicy;
-import jdk.graal.compiler.phases.common.priorityinline.tuning.TuningPolicy;
 import jdk.graal.compiler.phases.tiers.HighTierContext;
-import jdk.vm.ci.meta.ResolvedJavaMethod;
 
 /**
  * This enables InterproceduralPartialEscapeAnalysis, see
@@ -96,15 +88,6 @@ public class SubstratePolicyFactory extends DefaultPolicyFactory {
     }
 
     @Override
-    public TuningPolicy createTuningPolicy(OptionValues options) {
-        TuningPolicy defaultPolicy = super.createTuningPolicy(options);
-        if (!InterpreterSupport.isEnabled() || !ImageSingletons.contains(BytecodeHandlerFeature.class)) {
-            return defaultPolicy;
-        }
-        return new CompositeTuningPolicy(List.of(defaultPolicy, new CremaBytecodeHandlerStubTuningPolicy()));
-    }
-
-    @Override
     public int priority() {
         return 10;
     }
@@ -117,24 +100,6 @@ public class SubstratePolicyFactory extends DefaultPolicyFactory {
     @Override
     public boolean isAllowed() {
         return ImageInfo.inImageCode();
-    }
-
-    /**
-     * Applies the bytecode-interpreter tuning to call trees rooted at a Crema bytecode handler
-     * stub, allowing the handler implementation to be incorporated into the stub without changing
-     * the tuning of other bytecode interpreters.
-     */
-    private static final class CremaBytecodeHandlerStubTuningPolicy extends BytecodeInterpreterTuningPolicy {
-        @Override
-        protected boolean appliesTo(CallTreeNode node) {
-            ResolvedJavaMethod rootMethod = node.callTree().root().getReadonlySubgraph().method();
-            return InterpreterSupport.singleton().isInterpreterBytecodeHandlerStub(rootMethod);
-        }
-
-        @Override
-        public double callGraphSizePenaltyMultiplier(CutoffNode node) {
-            return appliesTo(node) ? 0.0 : super.callGraphSizePenaltyMultiplier(node);
-        }
     }
 
     public static class SubstrateInlinerPolicy extends Inliner.DefaultPolicy {

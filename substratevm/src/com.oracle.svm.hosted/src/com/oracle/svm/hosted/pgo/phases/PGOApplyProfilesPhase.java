@@ -52,7 +52,7 @@ import com.oracle.svm.hosted.meta.HostedUniverse;
 import com.oracle.svm.hosted.pgo.PGOUtils;
 import com.oracle.svm.hosted.pgo.ProfilingUtilities;
 import com.oracle.svm.hosted.pgo.profiles.PGOProfilesLookup;
-import com.oracle.svm.shared.option.HostedOptionKey;
+import com.oracle.svm.core.option.HostedOptionKey;
 
 import jdk.graal.compiler.debug.DebugContext;
 import jdk.graal.compiler.graph.Node;

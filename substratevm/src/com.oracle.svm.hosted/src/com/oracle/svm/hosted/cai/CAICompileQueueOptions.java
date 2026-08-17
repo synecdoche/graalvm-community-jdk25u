@@ -28,7 +28,7 @@ import org.graalvm.collections.EconomicMap;
 
 import com.oracle.svm.core.SubstrateOptions;
 import com.oracle.svm.core.util.UserError;
-import com.oracle.svm.shared.option.HostedOptionKey;
+import com.oracle.svm.core.option.HostedOptionKey;
 
 import jdk.graal.compiler.options.Option;
 import jdk.graal.compiler.options.OptionKey;

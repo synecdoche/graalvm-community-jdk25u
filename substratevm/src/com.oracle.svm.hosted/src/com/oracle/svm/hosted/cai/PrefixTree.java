@@ -38,10 +38,6 @@ import com.oracle.svm.hosted.meta.HostedMethod;
 import com.oracle.svm.hosted.meta.HostedUniverse;
 import com.oracle.svm.hosted.pgo.PGOUtils;
 import com.oracle.svm.hosted.pgo.profiles.PGOProfilesLookup;
-import com.oracle.svm.shared.singletons.traits.BuiltinTraits.BuildtimeAccessOnly;
-import com.oracle.svm.shared.singletons.traits.BuiltinTraits.DisallowLayered;
-import com.oracle.svm.shared.singletons.traits.BuiltinTraits.NoLayeredCallbacks;
-import com.oracle.svm.shared.singletons.traits.SingletonTraits;
 
 import jdk.graal.compiler.graph.NodeSourcePosition;
 import jdk.vm.ci.code.BytecodePosition;
@@ -55,7 +51,6 @@ import jdk.vm.ci.meta.ResolvedJavaMethod;
  * As a consequence, multiple calling contexts that start with the same chain of calls (i.e.,
  * prefix) share the same prefix nodes in the tree (single path for the distinct prefix).
  */
-@SingletonTraits(access = BuildtimeAccessOnly.class, layeredCallbacks = NoLayeredCallbacks.class, other = DisallowLayered.class)
 public class PrefixTree {
 
     private final Map<AnalysisMethod, Node> entryPoints = new HashMap<>();

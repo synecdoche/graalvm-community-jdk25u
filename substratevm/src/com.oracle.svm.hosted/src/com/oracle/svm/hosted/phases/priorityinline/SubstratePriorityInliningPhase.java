@@ -37,7 +37,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.oracle.graal.pointsto.meta.HostedProviders;
-import com.oracle.svm.core.SubstrateTarget;
+import com.oracle.svm.core.FrameAccess;
+import com.oracle.svm.core.config.ConfigurationValues;
 import com.oracle.svm.core.graal.meta.RuntimeConfiguration;
 import com.oracle.svm.core.imagelayer.ImageLayerBuildingSupport;
 import com.oracle.svm.core.nodes.CFunctionPrologueNode;
@@ -49,8 +50,8 @@ import com.oracle.svm.hosted.meta.HostedUniverse;
 import com.oracle.svm.hosted.pgo.phases.PGOApplyProfilesPhase;
 import com.oracle.svm.hosted.pgo.profiles.PGOProfilesLookup;
 import com.oracle.svm.hosted.phases.OOMEExceptionEdgePolicy;
-import com.oracle.svm.shared.option.HostedOptionKey;
-import com.oracle.svm.shared.option.HostedOptionValues;
+import com.oracle.svm.core.option.HostedOptionKey;
+import com.oracle.svm.core.option.HostedOptionValues;
 
 import jdk.graal.compiler.core.common.CompilationIdentifier;
 import jdk.graal.compiler.core.common.type.ObjectStamp;
@@ -189,7 +190,7 @@ public class SubstratePriorityInliningPhase extends PriorityInliningPhase {
     }
 
     public SubstratePriorityInliningPhase(SubstratePriorityInliningPhase oldPhase, SubstrateInliningProvider substrateInliningProvider, PGOProfilesLookup pgoProfiles) {
-        this(oldPhase.canonicalizer, HostedOptionValues.singleton().get(), oldPhase.runtimeConfig, oldPhase.optimisticOpts, oldPhase.universe, oldPhase.highTier, substrateInliningProvider,
+        this(oldPhase.canonicalizer, HostedOptionValues.singleton(), oldPhase.runtimeConfig, oldPhase.optimisticOpts, oldPhase.universe, oldPhase.highTier, substrateInliningProvider,
                         pgoProfiles);
     }
 
@@ -539,8 +540,8 @@ public class SubstratePriorityInliningPhase extends PriorityInliningPhase {
                     if (parameterStamps[i].getStackKind().isObject()) {
                         ObjectStamp parameterStamp = (ObjectStamp) parameterStamps[i];
                         if (parameterStamp.type() != null && ((HostedType) parameterStamp.type()).isWordType()) {
-                            assert BenefitKind.getArgumentStamps(invoke)[i].getStackKind() == SubstrateTarget.getWordKind();
-                            parameterStamps[i] = SubstrateTarget.getWordStamp();
+                            assert BenefitKind.getArgumentStamps(invoke)[i].getStackKind() == ConfigurationValues.getWordKind();
+                            parameterStamps[i] = FrameAccess.getWordStamp();
                         }
                     }
                 }

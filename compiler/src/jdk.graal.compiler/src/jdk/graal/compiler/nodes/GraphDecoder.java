@@ -1599,7 +1599,7 @@ public class GraphDecoder {
         } else if (node instanceof NewMultiArrayNode newMultiArray) {
             return new NewMultiArrayWithExceptionNode(newMultiArray.type(), newMultiArray.dimensions(), newMultiArray.stateBefore(), false);
         } else if (node instanceof DynamicNewInstanceNode dynamicNewInstance) {
-            return new DynamicNewInstanceWithExceptionNode(dynamicNewInstance.getInstanceType(), dynamicNewInstance.fillContents(), dynamicNewInstance.isOriginUnsafeAllocateInstance(),
+            return new DynamicNewInstanceWithExceptionNode(dynamicNewInstance.getInstanceType(), dynamicNewInstance.fillContents(),
                             dynamicNewInstance.stateBefore(), false);
         } else if (node instanceof DynamicNewArrayNode dynamicNewArray) {
             DynamicNewArrayWithExceptionNode replacement = new DynamicNewArrayWithExceptionNode(dynamicNewArray.getElementType(), dynamicNewArray.length(), dynamicNewArray.fillContents(),

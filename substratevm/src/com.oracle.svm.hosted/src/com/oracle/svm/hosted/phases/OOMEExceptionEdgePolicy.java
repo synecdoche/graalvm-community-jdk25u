@@ -27,7 +27,7 @@ package com.oracle.svm.hosted.phases;
 import org.graalvm.nativeimage.ImageSingletons;
 
 import com.oracle.graal.pointsto.meta.AnalysisMethod;
-import com.oracle.svm.core.UninterruptibleAnnotationUtils;
+import com.oracle.svm.core.Uninterruptible;
 import com.oracle.svm.core.heap.RestrictHeapAccessCallees;
 import com.oracle.svm.hosted.meta.HostedMethod;
 
@@ -81,7 +81,7 @@ public final class OOMEExceptionEdgePolicy {
      * ordinary allocation control flow.
      */
     public static boolean supportsOOMEExceptionEdges(ResolvedJavaMethod method) {
-        return method == null || !(UninterruptibleAnnotationUtils.isUninterruptible(method) || mustNotAllocate(method));
+        return method == null || !(Uninterruptible.Utils.isUninterruptible(method) || mustNotAllocate(method));
     }
 
     private static boolean mustNotAllocate(ResolvedJavaMethod method) {
