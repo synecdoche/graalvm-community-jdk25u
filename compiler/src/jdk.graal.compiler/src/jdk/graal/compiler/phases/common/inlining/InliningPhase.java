@@ -243,9 +243,10 @@ public class InliningPhase extends AbstractInliningPhase {
     }
 
     /**
-     * Collects the root invokes used to seed the unlimited recovery pass after the limited pass gives
-     * up. Restricting recovery to these invokes lets directed-inline and forced-inline targets remain
-     * reachable without reopening unrelated root invokes that were already stopped by the limit.
+     * Collects the root invokes used to seed the unlimited recovery pass after the limited pass
+     * gives up. Restricting recovery to these invokes lets directed-inline and forced-inline
+     * targets remain reachable without reopening unrelated root invokes that were already stopped
+     * by the limit.
      */
     private LinkedList<Invoke> collectRequiredRootInvokes(StructuredGraph graph, HighTierContext context, DirectedInliningRules.RuleSet requiredDirectedRules) {
         LinkedList<Invoke> requiredInvokes = new LinkedList<>();
@@ -259,10 +260,9 @@ public class InliningPhase extends AbstractInliningPhase {
     }
 
     /**
-     * Returns {@code true} when this root-graph invoke directly matches a directed inline rule or is
-     * the first required prefix of a longer directed inline chain and should be revisited by the
-     * unlimited recovery pass after
-     * {@link Options#MethodInlineBailoutLimit} was reached.
+     * Returns {@code true} when this root-graph invoke directly matches a directed inline rule or
+     * is the first required prefix of a longer directed inline chain and should be revisited by the
+     * unlimited recovery pass after {@link Options#MethodInlineBailoutLimit} was reached.
      */
     private static boolean matchesRootInvokeForDirectedInline(DirectedInliningRules.RuleSet directedRules, Invoke invoke) {
         if (!isRootGraphInvoke(invoke)) {
@@ -274,8 +274,8 @@ public class InliningPhase extends AbstractInliningPhase {
     }
 
     /**
-     * Checks profile-backed receiver types for direct abstract or interface root invokes that cannot
-     * be resolved to a single target before the recovery pass starts.
+     * Checks profile-backed receiver types for direct abstract or interface root invokes that
+     * cannot be resolved to a single target before the recovery pass starts.
      */
     private static boolean matchesProfiledTargetForDirectedInline(DirectedInliningRules.RuleSet directedRules, Invoke invoke) {
         if (!(invoke.callTarget() instanceof MethodCallTargetNode callTarget) || !callTarget.invokeKind().isIndirect()) {

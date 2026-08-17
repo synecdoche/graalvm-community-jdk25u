@@ -100,17 +100,17 @@ public class GraphDecoder {
 
     /**
      * Selects optional adaptations while decoding an encoded graph. {@link #DEFAULT} recreates the
-     * encoded graph as-is; other values are explicit opt-ins for callers that know the decoded graph
-     * must be adapted before it is used.
+     * encoded graph as-is; other values are explicit opt-ins for callers that know the decoded
+     * graph must be adapted before it is used.
      * <p>
-     * OOME edge repair is intentionally performed while an encoded graph is decoded for a particular
-     * inline site, before the invoke boundary is removed by inlining. If an encoded callee contains a
-     * plain allocation and is inlined into a caller whose invoke can catch {@link OutOfMemoryError},
-     * the inlinee must expose an unwind before inlining so the existing inlining machinery can connect
-     * that unwind to the caller's concrete exception successor. A later generic compiler phase would
-     * have to reconstruct the correct handler instance after inlining from bytecode metadata, frame
-     * states, or source positions, which is not reliable for duplicated inline scopes. The
-     * SVM-specific policy that selects this context is documented in
+     * OOME edge repair is intentionally performed while an encoded graph is decoded for a
+     * particular inline site, before the invoke boundary is removed by inlining. If an encoded
+     * callee contains a plain allocation and is inlined into a caller whose invoke can catch
+     * {@link OutOfMemoryError}, the inlinee must expose an unwind before inlining so the existing
+     * inlining machinery can connect that unwind to the caller's concrete exception successor. A
+     * later generic compiler phase would have to reconstruct the correct handler instance after
+     * inlining from bytecode metadata, frame states, or source positions, which is not reliable for
+     * duplicated inline scopes. The SVM-specific policy that selects this context is documented in
      * {@code com.oracle.svm.hosted.phases.OOMEExceptionEdgePolicy}.
      */
     public enum DecodeContext {
@@ -125,9 +125,9 @@ public class GraphDecoder {
     }
 
     /**
-     * Per-{@link MethodScope} state used by a {@link DecodePolicy}. The default policy does not need
-     * any state, but non-default policies can use this object to carry information across hooks while
-     * a single encoded method is being decoded.
+     * Per-{@link MethodScope} state used by a {@link DecodePolicy}. The default policy does not
+     * need any state, but non-default policies can use this object to carry information across
+     * hooks while a single encoded method is being decoded.
      */
     protected static class DecodeScopeData {
         protected boolean isOOMEPolicyScope() {
@@ -142,7 +142,8 @@ public class GraphDecoder {
      * customize only the decode points where the encoded shape can be insufficient for the caller
      * context:
      * <ul>
-     * <li>invokes, after their call target has been decoded but before successors are connected,</li>
+     * <li>invokes, after their call target has been decoded but before successors are
+     * connected,</li>
      * <li>exception edges, when a {@link WithExceptionNode} successor is materialized, and</li>
      * <li>fixed nodes, before subclass-specific simplification sees the decoded node.</li>
      * </ul>
@@ -152,8 +153,8 @@ public class GraphDecoder {
     protected class DecodePolicy {
         /**
          * Creates decode-policy state for {@code methodScope}. If the new method is decoded as part
-         * of an existing policy scope, {@code inheritedScopeData} gives the policy a chance to share
-         * state across nested decoded methods.
+         * of an existing policy scope, {@code inheritedScopeData} gives the policy a chance to
+         * share state across nested decoded methods.
          */
         protected DecodeScopeData createScopeData(@SuppressWarnings("unused") MethodScope methodScope, @SuppressWarnings("unused") DecodeScopeData inheritedScopeData) {
             return null;
@@ -163,8 +164,8 @@ public class GraphDecoder {
          * Gives the policy a chance to replace or annotate an invoke before normal and exceptional
          * successors are connected.
          *
-         * @param callTarget the decoded call target, or {@code null} in paths where the caller has not
-         *            materialized the call-target node yet
+         * @param callTarget the decoded call target, or {@code null} in paths where the caller has
+         *            not materialized the call-target node yet
          * @return the invoke data to use for the rest of invoke decoding
          */
         protected InvokeData prepareInvoke(@SuppressWarnings("unused") MethodScope methodScope, @SuppressWarnings("unused") LoopScope loopScope, InvokeData invokeData,
@@ -173,9 +174,9 @@ public class GraphDecoder {
         }
 
         /**
-         * Connects the exception edge for a decoded {@link WithExceptionNode}. The default expects an
-         * encoded exception successor and is therefore only valid for exception edges that were already
-         * present in the encoded graph.
+         * Connects the exception edge for a decoded {@link WithExceptionNode}. The default expects
+         * an encoded exception successor and is therefore only valid for exception edges that were
+         * already present in the encoded graph.
          */
         protected void prepareExceptionEdge(MethodScope methodScope, LoopScope loopScope, WithExceptionNode withException, int exceptionOrderId, NodeSourcePosition sourcePosition) {
             if (exceptionOrderId <= GraphEncoder.NULL_ORDER_ID) {
@@ -186,8 +187,8 @@ public class GraphDecoder {
 
         /**
          * Prepares a decoded fixed node before subclass-specific fixed-node handling. Policies may
-         * return a replacement node. Callers that continue processing the node must use the returned
-         * value.
+         * return a replacement node. Callers that continue processing the node must use the
+         * returned value.
          */
         protected FixedNode prepareFixedNode(@SuppressWarnings("unused") MethodScope methodScope, @SuppressWarnings("unused") LoopScope loopScope, @SuppressWarnings("unused") int nodeOrderId,
                         FixedNode node) {
@@ -200,10 +201,10 @@ public class GraphDecoder {
      * structure that an encoded graph may have lost for allocation OOMEs.
      * <p>
      * The policy intentionally does not affect default decoding. When selected for a particular
-     * materialization site, it converts plain allocation nodes to their {@link AllocateWithExceptionNode}
-     * variants, synthesizes an exception object and unwind exit for OOME paths, and converts decoded
-     * plain invokes to {@link InvokeWithExceptionNode}s when a non-inlined child call must also be able
-     * to throw through the caller's OOME handler.
+     * materialization site, it converts plain allocation nodes to their
+     * {@link AllocateWithExceptionNode} variants, synthesizes an exception object and unwind exit
+     * for OOME paths, and converts decoded plain invokes to {@link InvokeWithExceptionNode}s when a
+     * non-inlined child call must also be able to throw through the caller's OOME handler.
      * <p>
      * The restored allocation node keeps a normal {@code stateBefore}. The actual exceptional state
      * is carried by the synthetic {@link ExceptionObjectNode}, and the synthetic unwind/merge state
@@ -212,9 +213,9 @@ public class GraphDecoder {
     protected final class OOMEDecodePolicy extends DecodePolicy {
         /**
          * Owner for synthetic OOME exits created while decoding one scope. A decoder can explicitly
-         * pass inherited scope data to share this owner with nested scopes. PE inlining normally lets
-         * each decoded inlinee own its synthetic exits and forwards them during inline cleanup, which
-         * preserves intermediate OOME handlers.
+         * pass inherited scope data to share this owner with nested scopes. PE inlining normally
+         * lets each decoded inlinee own its synthetic exits and forwards them during inline
+         * cleanup, which preserves intermediate OOME handlers.
          */
         private final class OOMEOwnerData {
             final MethodScope methodScope;
@@ -226,8 +227,8 @@ public class GraphDecoder {
         }
 
         /**
-         * Scope-local policy state. Multiple scopes can point at the same {@link OOMEOwnerData} when a
-         * caller deliberately provides inherited OOME scope data.
+         * Scope-local policy state. Multiple scopes can point at the same {@link OOMEOwnerData}
+         * when a caller deliberately provides inherited OOME scope data.
          */
         private final class OOMEScopeData extends DecodeScopeData {
             final OOMEOwnerData owner;
@@ -259,8 +260,8 @@ public class GraphDecoder {
         }
 
         /**
-         * Inherit the owner only when the embedding decoder explicitly supplies inherited OOME scope
-         * data. Otherwise, the current scope owns its synthetic OOME exits.
+         * Inherit the owner only when the embedding decoder explicitly supplies inherited OOME
+         * scope data. Otherwise, the current scope owns its synthetic OOME exits.
          */
         @Override
         protected DecodeScopeData createScopeData(MethodScope methodScope, DecodeScopeData inheritedScopeData) {
@@ -273,8 +274,8 @@ public class GraphDecoder {
         /**
          * A decoded invoke in an OOME-protected context must be a real exception split if it is not
          * inlined later. Marking the invoke as in-OOME-try is useful for propagation, but the
-         * exception successor is what lets exceptions from a non-inlined child call reach the caller's
-         * handler.
+         * exception successor is what lets exceptions from a non-inlined child call reach the
+         * caller's handler.
          */
         @Override
         protected InvokeData prepareInvoke(MethodScope methodScope, LoopScope loopScope, InvokeData invokeData, CallTargetNode callTarget) {
@@ -287,8 +288,9 @@ public class GraphDecoder {
         }
 
         /**
-         * Encoded allocation nodes normally do not have an exception successor. In OOME mode, missing
-         * exception successors are repaired by adding a synthetic exception object and unwind.
+         * Encoded allocation nodes normally do not have an exception successor. In OOME mode,
+         * missing exception successors are repaired by adding a synthetic exception object and
+         * unwind.
          */
         @Override
         protected void prepareExceptionEdge(MethodScope methodScope, LoopScope loopScope, WithExceptionNode withException, int exceptionOrderId, NodeSourcePosition sourcePosition) {
@@ -300,8 +302,8 @@ public class GraphDecoder {
         }
 
         /**
-         * Restores allocation OOME modelling for decoded plain allocation nodes. If the node already
-         * has an exception edge, or is not an allocation kind handled by
+         * Restores allocation OOME modelling for decoded plain allocation nodes. If the node
+         * already has an exception edge, or is not an allocation kind handled by
          * {@link #createAllocationWithException(FixedNode)}, the encoded node is left unchanged.
          */
         @Override
@@ -371,8 +373,8 @@ public class GraphDecoder {
 
         /**
          * Adds {@code exceptionObject} to a synthetic OOME unwind path. Multiple allocation
-         * exception edges are merged into a single {@link UnwindNode}, matching the shape expected by
-         * graph-copy inlining.
+         * exception edges are merged into a single {@link UnwindNode}, matching the shape expected
+         * by graph-copy inlining.
          */
         private void addUnwind(OOMEOwnerData ownerData, LoopScope loopScope, ExceptionObjectNode exceptionObject) {
             OOMEExceptionExit exit = ownerData.exceptionExit;
@@ -497,8 +499,8 @@ public class GraphDecoder {
         protected final DecodePolicy decodePolicy;
 
         /**
-         * Policy-owned scope state. The base decoder treats this as opaque and only passes it back to
-         * policy hooks.
+         * Policy-owned scope state. The base decoder treats this as opaque and only passes it back
+         * to policy hooks.
          */
         protected final DecodeScopeData decodeScopeData;
 
@@ -950,8 +952,8 @@ public class GraphDecoder {
 
     /**
      * Decodes {@code encodedGraph} with an explicit materialization context. Use
-     * {@link DecodeContext#DEFAULT} unless the caller has already established that the decoded graph
-     * must be adapted for the use site.
+     * {@link DecodeContext#DEFAULT} unless the caller has already established that the decoded
+     * graph must be adapted for the use site.
      */
     public final void decode(EncodedGraph encodedGraph, DecodeContext decodeContext) {
         decode(encodedGraph, null, decodeContext);
@@ -1403,8 +1405,8 @@ public class GraphDecoder {
 
     /**
      * Applies context-sensitive invoke preparation before the invoke is wired into decoded control
-     * flow. The returned {@link InvokeData} can refer to a replacement invoke, so callers must use the
-     * return value for all subsequent invoke handling.
+     * flow. The returned {@link InvokeData} can refer to a replacement invoke, so callers must use
+     * the return value for all subsequent invoke handling.
      */
     protected InvokeData prepareInvoke(MethodScope methodScope, LoopScope loopScope, InvokeData invokeData, CallTargetNode callTarget) {
         return methodScope.decodePolicy.prepareInvoke(methodScope, loopScope, invokeData, callTarget);
@@ -1427,9 +1429,9 @@ public class GraphDecoder {
 
     /**
      * Converts a decoded plain invoke into an {@link InvokeWithExceptionNode} for contexts where an
-     * exception successor is required but the encoded graph did not contain one. The replacement keeps
-     * the original invoke's state and metadata, and it is registered under the same order id so later
-     * decode references find the replacement.
+     * exception successor is required but the encoded graph did not contain one. The replacement
+     * keeps the original invoke's state and metadata, and it is registered under the same order id
+     * so later decode references find the replacement.
      */
     private InvokeWithExceptionNode createInvokeWithException(LoopScope loopScope, InvokeData invokeData, CallTargetNode callTarget, InvokeNode invokeNode) {
         try (InliningLog.UpdateScope updateScope = InliningLog.openUpdateScopeTrackingReplacement(graph.getInliningLog(), invokeNode)) {
@@ -1576,8 +1578,8 @@ public class GraphDecoder {
      * Performs shared fixed-node preparation before subclass-specific handling. Subclasses that
      * override {@link #handleFixedNode(MethodScope, LoopScope, int, FixedNode)} and continue
      * processing the node must use the returned node because preparation can replace the original
-     * decoded node. The base implementation calls this method and ignores the result because it does
-     * not do any additional processing after preparation.
+     * decoded node. The base implementation calls this method and ignores the result because it
+     * does not do any additional processing after preparation.
      */
     protected FixedNode prepareFixedNode(MethodScope methodScope, LoopScope loopScope, int nodeOrderId, FixedNode node) {
         return methodScope.decodePolicy.prepareFixedNode(methodScope, loopScope, nodeOrderId, node);
@@ -1585,8 +1587,8 @@ public class GraphDecoder {
 
     /**
      * Creates the with-exception allocation variant for the plain allocation node, preserving the
-     * allocation inputs and pre-state. The replacement is restored from an encoded plain allocation,
-     * so it deliberately does not require a {@code stateAfter}; a valid parser-created
+     * allocation inputs and pre-state. The replacement is restored from an encoded plain
+     * allocation, so it deliberately does not require a {@code stateAfter}; a valid parser-created
      * post-allocation state cannot be reconstructed here. Non-allocation fixed nodes return
      * {@code null}. Note that {@link NewMultiArrayNode} is allocation-like but is not an
      * {@code AbstractNewObjectNode}, so the supported shapes are listed explicitly.
@@ -1622,8 +1624,8 @@ public class GraphDecoder {
     }
 
     /**
-     * Creates the synthetic OOME exception object. Subclasses with an active provider set can override
-     * this to stamp the exception with the provider's type universe.
+     * Creates the synthetic OOME exception object. Subclasses with an active provider set can
+     * override this to stamp the exception with the provider's type universe.
      */
     protected ExceptionObjectNode createOOMEExceptionObject() {
         return graph.add(new ExceptionObjectNode(StampFactory.objectNonNull()));

@@ -1988,9 +1988,10 @@ public class MethodTypeFlowBuilder {
         AnalysisType instanceType;
         if (instanceTypeNode instanceof GetClassNode getClassNode) {
             /*
-             * The dynamic new instance will create a new heap object for each type in the type state
-             * of the GetClassNode object. Thus, we don't need the type flow of the GetClassNode
-             * itself, which will give us Class objects, but that of its receiver object.
+             * The dynamic new instance will create a new heap object for each type in the type
+             * state of the GetClassNode object. Thus, we don't need the type flow of the
+             * GetClassNode itself, which will give us Class objects, but that of its receiver
+             * object.
              */
             ValueNode getClassReceiver = getClassNode.getObject();
             instanceType = (AnalysisType) StampTool.typeOrNull(getClassReceiver, bb.getMetaAccess());

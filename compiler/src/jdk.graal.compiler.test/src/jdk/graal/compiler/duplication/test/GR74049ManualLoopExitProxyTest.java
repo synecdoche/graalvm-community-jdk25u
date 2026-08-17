@@ -84,13 +84,14 @@ import jdk.vm.ci.meta.ResolvedJavaType;
 /**
  * Manual compiler-only regression for GR-74049.
  *
- * <p>The hosted SVM reproducer in {@code DuplicationRegressionGR74049Test} proves the production
+ * <p>
+ * The hosted SVM reproducer in {@code DuplicationRegressionGR74049Test} proves the production
  * failure, but it is too far away from the duplication code to let us shape the exact
  * loop-exit-proxy and guard-phi neighborhood that later becomes unschedulable during duplication.
- * This test therefore hand-builds the graph in Java code instead of deriving it from bytecode.
- * That trade-off is deliberate: the manual graph makes the structural preconditions explicit,
- * keeps the failing duplication region stable across unrelated canonicalization changes, and gives
- * us one fast unit-test entry point for future debugging.
+ * This test therefore hand-builds the graph in Java code instead of deriving it from bytecode. That
+ * trade-off is deliberate: the manual graph makes the structural preconditions explicit, keeps the
+ * failing duplication region stable across unrelated canonicalization changes, and gives us one
+ * fast unit-test entry point for future debugging.
  */
 public class GR74049ManualLoopExitProxyTest extends GraalCompilerTest {
 
@@ -191,7 +192,8 @@ public class GR74049ManualLoopExitProxyTest extends GraalCompilerTest {
      * Builds the smallest hand-shaped graph we currently know that preserves the hosted failure
      * ingredients from GR-74049.
      *
-     * <p>This is intentionally assembled node-by-node instead of parsed from bytecode: the hosted
+     * <p>
+     * This is intentionally assembled node-by-node instead of parsed from bytecode: the hosted
      * failure depends on a precise combination of nested loop exits, guard phis, proxies, and a
      * post-merge linear suffix leading into duplication. Expressing that shape directly in graph
      * construction code keeps the unit test honest about which edges matter and avoids accidental

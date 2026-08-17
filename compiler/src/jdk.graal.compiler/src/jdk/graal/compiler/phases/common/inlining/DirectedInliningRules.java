@@ -410,9 +410,9 @@ public final class DirectedInliningRules {
 
     /**
      * Finds the first rule whose complete call chain matches the candidate invoke target. If the
-     * terminal rule has a receiver-type filter, the filter must match {@code receiverType}. This lets
-     * directives name an abstract or interface method and optionally select the one receiver path
-     * that may be inlined from that declared call site.
+     * terminal rule has a receiver-type filter, the filter must match {@code receiverType}. This
+     * lets directives name an abstract or interface method and optionally select the one receiver
+     * path that may be inlined from that declared call site.
      *
      * @param callsites complete sequence of caller edges from the compilation root to the candidate
      *            invoke
@@ -471,8 +471,8 @@ public final class DirectedInliningRules {
     }
 
     /**
-     * Returns the caller method recorded on {@code invoke}, or {@code fallbackMethod} when no caller
-     * state is attached yet.
+     * Returns the caller method recorded on {@code invoke}, or {@code fallbackMethod} when no
+     * caller state is attached yet.
      *
      * @param invoke invoke whose frame state may carry the logical caller
      * @param fallbackMethod method to use when the invoke has no attached caller state
@@ -505,9 +505,9 @@ public final class DirectedInliningRules {
     }
 
     /**
-     * Returns the BCI of the invoke in the compilation root that produced the current inlined graph.
-     * This differs from {@link Invoke#bci()}, which is the BCI of the selected invoke in its immediate
-     * caller.
+     * Returns the BCI of the invoke in the compilation root that produced the current inlined
+     * graph. This differs from {@link Invoke#bci()}, which is the BCI of the selected invoke in its
+     * immediate caller.
      *
      * @param invoke invoke whose frame-state chain may identify the root invoke
      * @param inheritedRootInvokeBci root invoke BCI already inherited by the current inlined graph,

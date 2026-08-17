@@ -87,8 +87,9 @@ public class MethodInvocation {
     private final BitSet freshlyInstantiatedArguments;
 
     /**
-     * @param rootInvokeBci BCI of the invoke in the compilation root that produced this invocation's
-     *            inlined graph, or the directed-inlining sentinel for the root invocation
+     * @param rootInvokeBci BCI of the invoke in the compilation root that produced this
+     *            invocation's inlined graph, or the directed-inlining sentinel for the root
+     *            invocation
      */
     public MethodInvocation(InlineInfo info, double probability, double relevance, ResolvedJavaMethod callerMethod, int rootInvokeBci, DirectedInliningRules.Callsite[] callsites,
                     BitSet freshlyInstantiatedArguments) {
@@ -136,8 +137,8 @@ public class MethodInvocation {
     }
 
     /**
-     * Returns the compilation-root invoke BCI for directed rule matching. The caller invoke BCI for a
-     * selected call site is read from the {@code Invoke} currently being matched.
+     * Returns the compilation-root invoke BCI for directed rule matching. The caller invoke BCI for
+     * a selected call site is read from the {@code Invoke} currently being matched.
      */
     public int rootInvokeBci() {
         return rootInvokeBci;

@@ -1570,10 +1570,10 @@ public class NativeImageGenerator {
         ListIterator<BasePhase<? super HighTierContext>> position;
         if (hosted) {
             /*
-             * Remove any existing method inliner before potentially adding an SVM specific
-             * inliner for AOT compilation. Even if `createHostedInliners` below returns
-             * null (e.g. when using `-Ob`), SVM still has its own basic inlining system
-             * (see com.oracle.svm.hosted.code.CompileQueue.TrivialInliningPlugin).
+             * Remove any existing method inliner before potentially adding an SVM specific inliner
+             * for AOT compilation. Even if `createHostedInliners` below returns null (e.g. when
+             * using `-Ob`), SVM still has its own basic inlining system (see
+             * com.oracle.svm.hosted.code.CompileQueue.TrivialInliningPlugin).
              */
             highTier.removePhase(AbstractInliningPhase.class);
 

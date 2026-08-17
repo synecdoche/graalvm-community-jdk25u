@@ -221,8 +221,8 @@ public abstract class SharedGraphBuilderPhase extends GraphBuilderPhase.Instance
 
         /**
          * Enables parser-created allocation OOME exception edges only when the current block is
-         * inside a supported OOME-catching region and the current method can support those edges. For
-         * more information, see {@link OOMEExceptionEdgePolicy}.
+         * inside a supported OOME-catching region and the current method can support those edges.
+         * For more information, see {@link OOMEExceptionEdgePolicy}.
          */
         @Override
         public boolean currentBlockCatchesOOME() {

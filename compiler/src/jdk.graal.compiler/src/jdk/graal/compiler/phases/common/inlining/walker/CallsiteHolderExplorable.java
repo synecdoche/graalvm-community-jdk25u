@@ -165,8 +165,8 @@ public final class CallsiteHolderExplorable extends CallsiteHolder {
     }
 
     /**
-     * Returns the compilation-root invoke BCI for directed rule matching. For the root graph itself,
-     * this is the directed-inlining sentinel until a concrete root invoke is selected.
+     * Returns the compilation-root invoke BCI for directed rule matching. For the root graph
+     * itself, this is the directed-inlining sentinel until a concrete root invoke is selected.
      */
     public int rootInvokeBci() {
         return rootInvokeBci;

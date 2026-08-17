@@ -79,9 +79,9 @@ public class ConditionalEliminationPiStampDependencyTest extends ConditionalElim
 
     /**
      * Produces a bounded {@code index} value and a later {@code index < limit} guard. The white-box
-     * test replaces {@code limit} in that last comparison with a synthetic Pi carrying a tight lower
-     * bound, which would make the comparison look constant true if ConditionalElimination consumed
-     * the Pi stamp without also depending on the Pi guard.
+     * test replaces {@code limit} in that last comparison with a synthetic Pi carrying a tight
+     * lower bound, which would make the comparison look constant true if ConditionalElimination
+     * consumed the Pi stamp without also depending on the Pi guard.
      */
     public static int snippet(int index, int limit) {
         if (index < 0) {

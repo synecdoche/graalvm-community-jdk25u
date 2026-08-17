@@ -41,7 +41,6 @@ import static jdk.graal.compiler.phases.common.priorityinline.PriorityInliningPh
 import static jdk.graal.compiler.phases.common.priorityinline.PriorityInliningPhase.Options.TypicalGraphSize;
 import static jdk.graal.compiler.phases.common.priorityinline.PriorityInliningPhase.Options.TypicalGraphSizeInvokeBonus;
 
-
 import org.graalvm.nativeimage.ImageInfo;
 import org.graalvm.nativeimage.Platform;
 import org.graalvm.nativeimage.Platforms;
@@ -156,7 +155,8 @@ public class SubstratePolicyFactory extends DefaultPolicyFactory {
          * {@link jdk.graal.compiler.phases.common.priorityinline.PriorityInliningPhase.Options#TypicalGraphSize}
          * and
          * {@link jdk.graal.compiler.phases.common.priorityinline.PriorityInliningPhase.Options#RootSizePenaltyTypicalGraphSize}.
-         * We set the minimum to 0 so if scaling is minimal it disables inlining as much as possible.
+         * We set the minimum to 0 so if scaling is minimal it disables inlining as much as
+         * possible.
          */
         private static final int GRAPH_SIZE_MIN_VALUE = 0;
         /**
@@ -177,8 +177,7 @@ public class SubstratePolicyFactory extends DefaultPolicyFactory {
          * Minimum value when {@link #scaleOption(OptionValues, OptionKey, int, int, boolean)
          * scaling}
          * {@link jdk.graal.compiler.phases.common.priorityinline.PriorityInliningPhase.Options#ExpansionInertiaBaseValue}.
-         * Cannot be 0 since the value is used as a divisor by the
-         * {@link PriorityInliningPhase}.
+         * Cannot be 0 since the value is used as a divisor by the {@link PriorityInliningPhase}.
          */
         private static final int EXPANSION_INERTIA_MIN_VALUE = 1;
         /**

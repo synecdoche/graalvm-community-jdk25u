@@ -651,8 +651,8 @@ public class PriorityInliningPhase extends AbstractInliningPhase {
          * Repeatedly expand and inline force-inlined invokes that remain or become direct children
          * of the root after the policy driven algorithm has converged or stopped due to its limits.
          * Recursive force-inlined invokes still terminate because recursive expansion is limited:
-         * when a recursive invoke has been expanded often enough, expansion produces a non-inlineable
-         * {@link GenericNode} instead of a {@link ParentNode}.
+         * when a recursive invoke has been expanded often enough, expansion produces a
+         * non-inlineable {@link GenericNode} instead of a {@link ParentNode}.
          */
         private void inlineForceInlined(CoreProviders coreProviders) {
             boolean changed;

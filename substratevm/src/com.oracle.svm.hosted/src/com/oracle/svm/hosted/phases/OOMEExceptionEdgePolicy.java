@@ -43,12 +43,13 @@ import jdk.vm.ci.meta.ResolvedJavaMethod;
  * represented with allocation-with-exception nodes when the graph is built or materialized for an
  * OOME-protected context.
  * <p>
- * The repair is intentionally done while a graph is parsed or decoded for a concrete caller context,
- * before inlining removes the invoke boundary. If a decoded callee is inlined into a caller whose
- * invoke can catch OOME, the decoded callee must expose an unwind for allocation OOME so normal
- * inlining can connect that unwind to the caller's concrete exception successor. A later generic
- * compiler phase would have to reconstruct that handler instance after inlining from bytecode
- * metadata, frame states, or source positions, which is not reliable for duplicated inline scopes.
+ * The repair is intentionally done while a graph is parsed or decoded for a concrete caller
+ * context, before inlining removes the invoke boundary. If a decoded callee is inlined into a
+ * caller whose invoke can catch OOME, the decoded callee must expose an unwind for allocation OOME
+ * so normal inlining can connect that unwind to the caller's concrete exception successor. A later
+ * generic compiler phase would have to reconstruct that handler instance after inlining from
+ * bytecode metadata, frame states, or source positions, which is not reliable for duplicated inline
+ * scopes.
  * <p>
  * Supported protected regions are direct typed handlers for {@code OutOfMemoryError}, plus explicit
  * OOME contexts created by infrastructure that owns a concrete exception edge, such as
@@ -60,25 +61,26 @@ import jdk.vm.ci.meta.ResolvedJavaMethod;
  * <p>
  * Allocation-restricted methods are also excluded. Low-level VM code can contain assertion/error
  * paths that are normally removed or ignored by the SVM restriction checkers, but the
- * allocation-with-exception shape can leave those paths visible as ordinary allocation control flow.
+ * allocation-with-exception shape can leave those paths visible as ordinary allocation control
+ * flow.
  * <p>
  * Repaired allocation nodes keep only the normal allocation {@code stateBefore}; they do not
  * reconstruct a parser-created post-allocation state. The OOME path carries its state on the
  * synthetic exception object, while the normal successor continues with the frame state that is
  * established by the next real state-bearing node.
  * <p>
- * Later phases that introduce new allocation nodes must make the same decision locally. For example,
- * enterprise string inlining only preserves OOME routing when a new materialization allocation can
- * share an existing local OOME exception boundary; it deliberately does not reconstruct handlers
- * from bytecode metadata after inlining.
+ * Later phases that introduce new allocation nodes must make the same decision locally. For
+ * example, enterprise string inlining only preserves OOME routing when a new materialization
+ * allocation can share an existing local OOME exception boundary; it deliberately does not
+ * reconstruct handlers from bytecode metadata after inlining.
  */
 public final class OOMEExceptionEdgePolicy {
 
     /**
-     * Explicit OOME edges are not supported in allocation-restricted methods yet. Low-level VM
-     * code can contain assertion/error paths that are normally removed or ignored by the SVM
-     * restriction checkers, but the allocation-with-exception shape can leave those paths visible as
-     * ordinary allocation control flow.
+     * Explicit OOME edges are not supported in allocation-restricted methods yet. Low-level VM code
+     * can contain assertion/error paths that are normally removed or ignored by the SVM restriction
+     * checkers, but the allocation-with-exception shape can leave those paths visible as ordinary
+     * allocation control flow.
      */
     public static boolean supportsOOMEExceptionEdges(ResolvedJavaMethod method) {
         return method == null || !(Uninterruptible.Utils.isUninterruptible(method) || mustNotAllocate(method));

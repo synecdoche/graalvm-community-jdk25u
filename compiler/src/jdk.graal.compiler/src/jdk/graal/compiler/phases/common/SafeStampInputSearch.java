@@ -34,8 +34,8 @@ import jdk.graal.compiler.nodes.ValueNode;
  * Reusable iterator state for the bounded safe-stamp input search.
  *
  * Each query starts with {@link #start(ValueNode)}, which clears the seen bitmap, result stack, and
- * level queues. Iteration then exposes one value producer at a time while the implementation owns the
- * current-level and next-level queue swap.
+ * level queues. Iteration then exposes one value producer at a time while the implementation owns
+ * the current-level and next-level queue swap.
  */
 public final class SafeStampInputSearch {
 
@@ -46,8 +46,8 @@ public final class SafeStampInputSearch {
     private static final int SAFE_STAMP_INPUT_SEARCH_DEPTH = 3;
 
     /**
-     * Maximum number of distinct value nodes queued by one search before the stamp is considered too
-     * expensive to prove safe.
+     * Maximum number of distinct value nodes queued by one search before the stamp is considered
+     * too expensive to prove safe.
      */
     private static final int SAFE_STAMP_INPUT_SEARCH_MAX_NODES = 32;
 
@@ -113,7 +113,8 @@ public final class SafeStampInputSearch {
     }
 
     /**
-     * Returns the next value producer and records it for the later control-dependency validation pass.
+     * Returns the next value producer and records it for the later control-dependency validation
+     * pass.
      */
     public ValueNode next() {
         GraalError.guarantee(hasNext(), "safe-stamp input search has no next value producer");

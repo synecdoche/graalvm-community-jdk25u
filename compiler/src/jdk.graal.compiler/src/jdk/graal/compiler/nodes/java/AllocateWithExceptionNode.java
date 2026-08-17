@@ -64,9 +64,9 @@ public abstract class AllocateWithExceptionNode extends WithExceptionNode implem
     /**
      * Controls whether this {@link StateSplit} must carry a valid post-allocation
      * {@linkplain #stateAfter() stateAfter}. Parser-created allocation-with-exception nodes have an
-     * exact post-allocation frame state, but nodes restored from encoded plain allocations during SVM
-     * graph decoding do not: the encoded graph usually preserved only the allocation pre-state, and a
-     * valid parser-created post-state cannot be reconstructed reliably at the decode site.
+     * exact post-allocation frame state, but nodes restored from encoded plain allocations during
+     * SVM graph decoding do not: the encoded graph usually preserved only the allocation pre-state,
+     * and a valid parser-created post-state cannot be reconstructed reliably at the decode site.
      */
     private final boolean mustHaveStateAfter;
 

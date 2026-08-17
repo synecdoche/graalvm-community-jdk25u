@@ -106,8 +106,7 @@ public final class PGOApplyProfilesPhase extends SingleRunSubphase<HighTierConte
      * If this flag is set the graph is considered hot even if the
      * {@link jdk.graal.compiler.nodes.StructuredGraph.GlobalProfileProvider} says otherwise. This
      * is to ensure that we apply sampling based profiles correctly during expansion of
-     * {@link CutoffNode cutoff nodes} if
-     * the compilation root is hot.
+     * {@link CutoffNode cutoff nodes} if the compilation root is hot.
      */
     private final boolean forceHot;
     /**
@@ -580,9 +579,7 @@ public final class PGOApplyProfilesPhase extends SingleRunSubphase<HighTierConte
          * Counters for how many times looking up a profile returned a profile and how many times
          * not.
          * <p>
-         * Only updated if
-         * {@link Options#PGOPrintProfileQuality}
-         * is set.
+         * Only updated if {@link Options#PGOPrintProfileQuality} is set.
          */
         private static final AtomicLong profileSuccessCounter = new AtomicLong();
         private static final AtomicLong profileFailCounter = new AtomicLong();
@@ -592,10 +589,9 @@ public final class PGOApplyProfilesPhase extends SingleRunSubphase<HighTierConte
          * Counters for how many methods the phase was applied to and a list of all contexts for
          * which no profile was provided. This peripherally meant for debugging purposes.
          * <p>
-         * Only updated if
-         * {@link Options#PGOPrintProfileQualityDetails}
-         * is set, and methods are only counted when we are applying context insensitive profiles
-         * (see {@link #createContextInsensitive})
+         * Only updated if {@link Options#PGOPrintProfileQualityDetails} is set, and methods are
+         * only counted when we are applying context insensitive profiles (see
+         * {@link #createContextInsensitive})
          *
          */
         private static final AtomicLong functions = new AtomicLong();

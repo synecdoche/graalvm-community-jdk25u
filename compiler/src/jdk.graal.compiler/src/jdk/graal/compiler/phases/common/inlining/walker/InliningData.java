@@ -128,17 +128,17 @@ public class InliningData {
     private final DirectedInliningRules directedInliningRules;
     private final DirectedInliningRules directedDontInliningRules;
     /**
-     * True when this directed inlining pass was seeded with an explicit subset of root invokes. This
-     * mode is used by the unlimited directed recovery pass to keep forced and directed root invokes
-     * reachable without exploring unrelated root invokes again.
+     * True when this directed inlining pass was seeded with an explicit subset of root invokes.
+     * This mode is used by the unlimited directed recovery pass to keep forced and directed root
+     * invokes reachable without exploring unrelated root invokes again.
      */
     private final boolean exploreExplicitRootInvokes;
 
     private int maxGraphs;
 
     /**
-     * Controls invoke exploration when the normal inlining policy no longer wants to keep growing the
-     * current graph.
+     * Controls invoke exploration when the normal inlining policy no longer wants to keep growing
+     * the current graph.
      */
     private enum ExplorationMode {
         /**

@@ -75,7 +75,8 @@ public class HighTier extends BaseTier<HighTierContext> {
         if (Options.Inline.getValue(options)) {
             boolean usePriorityInlining = PriorityInliningPhase.Options.UsePriorityInlining.getValue(options);
             if (NativeImageSupport.inBuildtimeCode()) {
-                // GR-78137: priority inliner does not yet work with Native Image runtime compilation
+                // GR-78137: priority inliner does not yet work with Native Image runtime
+                // compilation
                 usePriorityInlining = false;
             }
             if (usePriorityInlining) {

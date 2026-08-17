@@ -1445,8 +1445,8 @@ public abstract class PEGraphDecoder extends SimplifyingGraphDecoder {
                 } else if (inlineScope.hasOOMEPolicyScopeForDecode()) {
                     /*
                      * The invoke was converted while decoding in OOME mode. It has no encoded
-                     * exception successor, so propagate the inlinee exception through a caller-scope
-                     * synthetic unwind.
+                     * exception successor, so propagate the inlinee exception through a
+                     * caller-scope synthetic unwind.
                      */
                     unwindReplacement = null;
                 } else {

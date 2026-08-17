@@ -56,8 +56,8 @@ public class InlineBeforeAnalysisGraphDecoderImpl extends InlineBeforeAnalysisGr
     }
 
     /**
-     * Allows inline-before-analysis decoding to repair allocation OOME edges when the decoded callee
-     * is materialized under a supported OOME-catching context. For more information, see
+     * Allows inline-before-analysis decoding to repair allocation OOME edges when the decoded
+     * callee is materialized under a supported OOME-catching context. For more information, see
      * {@link OOMEExceptionEdgePolicy}.
      */
     @Override

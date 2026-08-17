@@ -225,11 +225,11 @@ public class ConditionalEliminationUtil {
     }
 
     /**
-     * Proves that a value's stamp can be consumed without also depending on hidden control flow. The
-     * first pass records the bounded cone of value producers needed by the stamp. The second pass
-     * validates those producers for explicit control dependencies. Keeping the passes separate makes
-     * the bounded search about graph shape first, then about the safety property that justifies using
-     * the stamp.
+     * Proves that a value's stamp can be consumed without also depending on hidden control flow.
+     * The first pass records the bounded cone of value producers needed by the stamp. The second
+     * pass validates those producers for explicit control dependencies. Keeping the passes separate
+     * makes the bounded search about graph shape first, then about the safety property that
+     * justifies using the stamp.
      */
     private static boolean hasControlFlowIndependentStamp(ValueNode x, SafeStampInputSearch search) {
         if (!collectStampProducers(x, search)) {
@@ -253,9 +253,9 @@ public class ConditionalEliminationUtil {
 
     /**
      * Collects the value producers whose stamps would have to be trusted for {@code x}'s stamp. The
-     * search stops at constants and parameters, whose stamps do not depend on dominating guards, and
-     * at nodes whose current stamp can be reproduced from dependency-free input stamps. Any remaining
-     * value dependency must fit within the fixed search depth.
+     * search stops at constants and parameters, whose stamps do not depend on dominating guards,
+     * and at nodes whose current stamp can be reproduced from dependency-free input stamps. Any
+     * remaining value dependency must fit within the fixed search depth.
      */
     private static boolean collectStampProducers(ValueNode x, SafeStampInputSearch search) {
         search.start(x);
@@ -337,9 +337,10 @@ public class ConditionalEliminationUtil {
     }
 
     /**
-     * Keeps only input facts that are dependency-free by construction. Non-constant values use their
-     * unrestricted stamp because a derived value may carry guard-dependent facts even when the value
-     * itself is not a {@link PiNode}, {@link GuardedValueNode}, or guarded {@link ValueProxy}.
+     * Keeps only input facts that are dependency-free by construction. Non-constant values use
+     * their unrestricted stamp because a derived value may carry guard-dependent facts even when
+     * the value itself is not a {@link PiNode}, {@link GuardedValueNode}, or guarded
+     * {@link ValueProxy}.
      */
     private static Stamp stampWithOnlyConstantFacts(ValueNode value) {
         Stamp stamp = value.stamp(NodeView.DEFAULT);
